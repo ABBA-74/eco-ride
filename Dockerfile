@@ -24,10 +24,13 @@ RUN apk add --no-cache \
         libzip-dev \
         zip \
         icu-dev \
+        postgresql-dev \
     && docker-php-ext-install -j$(nproc) \
         intl \
         opcache \
         pdo_mysql \
+        pdo_pgsql \
+        pgsql \
         zip
 
 # Copy Composer binary from the official Composer image
