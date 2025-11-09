@@ -1,0 +1,58 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ parent() }} - Home{% endblock %}
+
+{% block body %}
+	<style>
+		body {
+			background-color: #121212;
+			color: #e0e0e0;
+			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			align-items: center;
+			height: 100vh;
+			margin: 0;
+		}
+
+		h1 {
+			font-size: 2.5rem;
+			color: #00c853;
+			margin-bottom: 0.5rem;
+		}
+
+		p {
+			color: #bdbdbd;
+			font-size: 1.1rem;
+		}
+
+		.env-badge {
+			margin-top: 2rem;
+			padding: 0.5rem 1.5rem;
+			border-radius: 999px;
+			background-color: {% if app_env == 'prod' %}
+				#2e7d32 {% elseif app_env == 'staging' %}
+				#f9a825 {% else %}
+				#1565c0{% endif %};
+			color: #fff;
+			font-weight: bold;
+			text-transform: uppercase;
+		}
+
+		footer {
+			position: absolute;
+			bottom: 15px;
+			font-size: 0.9rem;
+			color: #757575;
+		}
+	</style>
+	<div>
+		<h1>🚗 Welcome to EcoRide</h1>
+		<p>Your Symfony app is running successfully.</p>
+		<div class="env-badge">
+			{{ app_env }}
+		</div>
+	</div>
+	<footer>EcoRide • Symfony 7 • Dark mode staging template</footer>
+{% endblock %}
