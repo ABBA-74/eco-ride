@@ -1,0 +1,29 @@
+# Ignore version control system files (not needed inside the image)
+.git
+.gitignore
+
+# Ignore development dependencies (installed during build steps if required)
+node_modules
+vendor/
+
+# Ignore IDE configuration files (e.g. PhpStorm, VS Code)
+.idea/
+.vscode/
+
+# Ignore sensitive or temporary environment files
+.env
+.env.*
+*.env
+
+# Ignore local cache (should be built inside the container)
+var/cache/*
+
+# Ignore log directories (not needed inside the image)
+var/log/*
+
+# Ignore test files and directories (not required in production)
+tests/
+
+# Ignore Docker Compose configuration files
+docker-compose.yml
+docker-compose.*.yml
