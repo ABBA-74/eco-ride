@@ -1,0 +1,112 @@
+name: Deploy Ecoride Production
+
+on:
+    workflow_dispatch: # manual trigger only
+
+env:
+    DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/ecoride
+    CONTAINER_NAME: ecoride_app
+    APP_ENV: prod
+    APP_DEBUG: 0
+
+jobs:
+    # ---------------------------------------------
+    # 1. BUILD JOB (build assets, composer, docker)
+    # ---------------------------------------------
+    build:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: 🐘 Setup PHP 8.4
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: "8.4"
+                  extensions: mbstring, intl, pdo_pgsql
+                  coverage: none
+
+            - name: 📦 Setup Node.js
+              uses: actions/setup-node@v3
+              with:
+                  node-version: "18"
+
+            - name: ⚙️ Cache npm
+              uses: actions/cache@v3
+              with:
+                  path: ~/.npm
+                  key: npm-${{ hashFiles('**/package-lock.json') }}
+                  restore-keys: |
+                      npm-
+
+            - name: 📦 Install JS dependencies
+              run: npm ci
+
+            - name: 🔧 Build frontend assets
+              run: npm run build
+
+            - name: 🧩 Install Composer dependencies
+              run: composer install --no-dev --optimize-autoloader --no-interaction
+
+            - name: 🧹 Clear Symfony prod cache
+              run: php bin/console cache:clear --env=prod --no-interaction
+
+            - name: 📦 Compile Symfony asset mapper
+              run: php bin/console asset-map:compile
+
+            - name: 🔐 Log in to Docker Hub
+              uses: docker/login-action@v3
+              with:
+                  username: ${{ secrets.DOCKERHUB_USERNAME }}
+                  password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+            - name: 🐳 Build Docker image (prod)
+              run: docker build --target=prod -t $DOCKER_IMAGE:latest .
+
+            - name: 📤 Push Docker image
+              run: docker push $DOCKER_IMAGE:latest
+
+    # ---------------------------------------------
+    # 2. DEPLOY JOB (ssh on VPS + docker run)
+    # ---------------------------------------------
+    deploy:
+        runs-on: ubuntu-latest
+        needs: build
+
+        steps:
+            - name: 🚀 Deploy on VPS via SSH
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.VPS_HOST }}
+                  username: ${{ secrets.VPS_USER }}
+                  key: ${{ secrets.VPS_PRIVATE_KEY }}
+                  script: |
+                      docker pull $DOCKER_IMAGE:latest
+                      docker stop $CONTAINER_NAME || true
+                      docker rm $CONTAINER_NAME || true
+                      docker run -d --name $CONTAINER_NAME \
+                        -e APP_ENV=prod \
+                        -e APP_DEBUG=0 \
+                        -p 9000:80 \
+                        $DOCKER_IMAGE:latest
+
+    # ---------------------------------------------
+    # 3. SLACK NOTIFICATION JOB
+    # ---------------------------------------------
+    notify:
+        runs-on: ubuntu-latest
+        needs: deploy
+
+        steps:
+            - name: 🔔 Slack notification (production)
+              if: ${{ always() }}
+              uses: slackapi/slack-github-action@v1.24.0
+              with:
+                  payload: |
+                      {
+                        "channel": "${{ secrets.SLACK_CHANNEL_ID }}",
+                        "text": ":red_circle: *🚨 Déploiement PRODUCTION terminé !*\n\n:rocket: *Projet* : `Ecoride`\n:factory: *Environnement* : `production`\n:bust_in_silhouette: *Déclenché par* : `${{ github.actor }}`\n:link: *Voir le run* : <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}>\n:page_with_curl: *Commit* : <https://github.com/${{ github.repository }}/commit/${{ github.sha }}>\n\n*Statut* : `${{ job.status }}`\n\n:warning: _Merci de vérifier que tout fonctionne comme prévu._"
+                      }
+              env:
+                  SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
