@@ -60,10 +60,13 @@ jobs:
               run: php bin/console asset-map:compile
 
             - name: 🚧 Run migrations (test)
-              run: php bin/console doctrine:migrations:migrate --env=test --no-interaction
+              run: php bin/console doctrine:migrations:migrate --env=staging --no-interaction
 
             - name: 📥 Load fixtures
-              run: php bin/console doctrine:fixtures:load --env=test --no-interaction
+              if: env.LOAD_FIXTURES == 'true'
+              run: php bin/console doctrine:fixtures:load --env=staging --no-interaction
+              env:
+                LOAD_FIXTURES: ${{ secrets.LOAD_FIXTURES }}
 
             - name: ✅ Run PHPUnit tests (TestDox)
               run: php bin/phpunit --testdox
