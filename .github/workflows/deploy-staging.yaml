@@ -106,20 +106,19 @@ jobs:
 
         steps:
             - name: 🚀 Deploy to VPS via SSH
-              uses: appleboy/ssh-action@v1.0.3
+              uses: appleboy/ssh-action@v1.2.2
               with:
                   host: ${{ secrets.VPS_HOST }}
                   username: ${{ secrets.VPS_USER }}
                   key: ${{ secrets.VPS_PRIVATE_KEY }}
                   script: |
                       docker pull $DOCKER_IMAGE:latest
-                      docker stop $CONTAINER_NAME || true
-                      docker rm $CONTAINER_NAME || true
-                      docker run -d --name $CONTAINER_NAME \
-                        -e APP_ENV=staging \
-                        -e APP_DEBUG=0 \
-                        -p 9001:80 \
-                        $DOCKER_IMAGE:latest
+                      chmod +x .github/scripts/deploy-staging.sh
+                      DOCKER_IMAGE="${{ secrets.DOCKER_IMAGE }}" \
+                      CONTAINER_NAME="ecoride_staging" \
+                      DATABASE_URL="${{ secrets.STAGING_DATABASE_URL }}" \
+                      LOAD_FIXTURES="${{ secrets.LOAD_FIXTURES }}" \
+                      .github/scripts/deploy-staging.sh
 
     # ---------------------------------------------
     # 4. SLACK NOTIFICATION JOB

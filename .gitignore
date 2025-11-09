@@ -21,3 +21,7 @@
 ###< symfony/asset-mapper ###
 
 compose.override.yaml
+
+###> Ignore Nginx log files ###
+docker/nginx/*.log
+###< Ignore Nginx log files ###
