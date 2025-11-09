@@ -27,25 +27,6 @@ jobs:
                   extensions: mbstring, intl, pdo_pgsql
                   coverage: none
 
-            - name: 📦 Setup Node.js
-              uses: actions/setup-node@v3
-              with:
-                  node-version: "18"
-
-            - name: ⚙️ Cache npm
-              uses: actions/cache@v3
-              with:
-                  path: ~/.npm
-                  key: npm-${{ hashFiles('**/package-lock.json') }}
-                  restore-keys: |
-                      npm-
-
-            - name: 📦 Install JS dependencies
-              run: npm ci
-
-            - name: 🔧 Build frontend assets
-              run: npm run build
-
             - name: 🧩 Install Composer dependencies
               run: composer install --no-dev --optimize-autoloader --no-interaction
 
