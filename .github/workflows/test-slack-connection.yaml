@@ -1,0 +1,20 @@
+name: Test Slack Connection
+
+on:
+  workflow_dispatch: # exécution manuelle
+
+jobs:
+  test-slack-connection:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🔔 Send test message to Slack
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "channel": "${{ secrets.SLACK_CHANNEL_ID }}",
+              "text": ":wave: *Test successful!* GitHub Actions is connected to Slack :rocket:"
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
