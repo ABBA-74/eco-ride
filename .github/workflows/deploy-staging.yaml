@@ -8,11 +8,11 @@ on:
 env:
     DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/ecoride
     CONTAINER_NAME: ecoride_staging
-    POSTGRES_DB: app_test
+    POSTGRES_DB: app_staging
     POSTGRES_USER: app
     POSTGRES_PASSWORD: ${{ secrets.TEST_DB_PASSWORD }}
-    APP_ENV: prod
-    APP_DEBUG: 1
+    APP_ENV: staging
+    APP_DEBUG: 0
 
 jobs:
     # ---------------------------------------------
@@ -51,18 +51,21 @@ jobs:
               run: composer install --no-progress --prefer-dist
 
             - name: 🎨 Install Symfony assets
-              run: php bin/console assets:install --env=test
+              run: php bin/console assets:install --env=staging
 
-            - name: 🧹 Clear Symfony test cache
-              run: php bin/console cache:clear --env=test
+            - name: 🧹 Clear Symfony staging cache
+              run: php bin/console cache:clear --env=staging
 
             - name: 📦 Compile asset mapper
               run: php bin/console asset-map:compile
 
-            - name: 🚧 Run migrations (test)
+            - name: 🗄️ Create database (staging)
+              run: php bin/console doctrine:database:create --if-not-exists --env=staging
+
+            - name: 🚧 Run migrations (staging)
               run: php bin/console doctrine:migrations:migrate --env=staging --no-interaction
 
-            - name: 📥 Load fixtures
+            - name: 📥 Load fixtures (staging)
               if: env.LOAD_FIXTURES == 'true'
               run: php bin/console doctrine:fixtures:load --env=staging --no-interaction
               env:
@@ -113,8 +116,8 @@ jobs:
                       docker stop $CONTAINER_NAME || true
                       docker rm $CONTAINER_NAME || true
                       docker run -d --name $CONTAINER_NAME \
-                        -e APP_ENV=prod \
-                        -e APP_DEBUG=1 \
+                        -e APP_ENV=staging \
+                        -e APP_DEBUG=0 \
                         -p 9001:80 \
                         $DOCKER_IMAGE:latest
 
