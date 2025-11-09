@@ -1,0 +1,103 @@
+name: Continuous Integration
+
+on:
+    push:
+        branches:
+            - dev
+    pull_request:
+        branches:
+            - dev
+
+env:
+    POSTGRES_DB: app_test
+    POSTGRES_USER: app
+    POSTGRES_PASSWORD: ${{ secrets.TEST_DB_PASSWORD }}
+    APP_ENV: test
+    APP_DEBUG: 1
+
+jobs:
+    # ---------------------------------------------
+    # 1. TEST JOB
+    # ---------------------------------------------
+    tests:
+        runs-on: ubuntu-latest
+
+        services:
+            postgres:
+                image: postgres:16-alpine
+                env:
+                    POSTGRES_DB: ${{ env.POSTGRES_DB }}
+                    POSTGRES_USER: ${{ env.POSTGRES_USER }}
+                    POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+                ports:
+                    - 5432:5432
+                options: >-
+                    --health-cmd="pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"
+                    --health-interval=10s
+                    --health-timeout=5s
+                    --health-retries=5
+
+        steps:
+            - name: 🔽 Checkout code
+              uses: actions/checkout@v4
+
+            - name: 🐘 Setup PHP
+              uses: shivammathur/setup-php@v2
+              with:
+                  php-version: "8.4"
+                  extensions: mbstring, intl, pdo_pgsql
+                  coverage: none
+
+            - name: 📦 Setup Node.js
+              uses: actions/setup-node@v3
+              with:
+                  node-version: "18"
+
+            - name: 📦 Install JS dependencies
+              run: npm ci
+
+            - name: 🔧 Build assets
+              run: npm run build
+
+            - name: 🧩 Install Composer dependencies
+              run: composer install --no-progress --prefer-dist
+
+            - name: 🎨 Install Symfony assets
+              run: php bin/console assets:install --env=test
+
+            - name: 🧹 Clear Symfony test cache
+              run: php bin/console cache:clear --env=test
+
+            - name: 📦 Compile asset mapper
+              run: php bin/console asset-map:compile
+
+            - name: 🚧 Run migrations
+              run: php bin/console doctrine:migrations:migrate --env=test --no-interaction
+
+            - name: 📥 Load fixtures
+              run: php bin/console doctrine:fixtures:load --env=test --no-interaction
+
+            - name: ✅ Run PHPUnit tests (TestDox)
+              run: php bin/phpunit --testdox
+
+    # ---------------------------------------------
+    # 2. SLACK NOTIFICATION JOB
+    # ---------------------------------------------
+    notify:
+        runs-on: ubuntu-latest
+        needs: tests
+
+        steps:
+            - name: 🔔 Slack notification (CI - dev)
+              if: ${{ always() }}
+              uses: slackapi/slack-github-action@v1.24.0
+              with:
+                  payload: |
+                      {
+                        "channel": "${{ secrets.SLACK_CHANNEL_ID }}",
+                        "text": "${{ job.status == 'success' &&
+                          ':white_check_mark: *CI RÉUSSI sur `dev`*\n\n:rocket: *Projet* : `Ecoride`\n:desktop_computer: *Branche* : `${{ github.ref_name }}`\n:bust_in_silhouette: *Déclenché par* : `${{ github.actor }}`\n:page_with_curl: *Commit* : <https://github.com/${{ github.repository }}/commit/${{ github.sha }}>\n\n:tada: Tous les tests sont passés avec succès ! 🎉'
+                          ||
+                          ':x: *ÉCHEC du CI sur `dev`*\n\n:rocket: *Projet* : `Ecoride`\n:desktop_computer: *Branche* : `${{ github.ref_name }}`\n:bust_in_silhouette: *Déclenché par* : `${{ github.actor }}`\n:page_with_curl: *Commit* : <https://github.com/${{ github.repository }}/commit/${{ github.sha }}>\n\n:warning: *Merci de corriger les erreurs.* <@U123ABC456>' }}"
+              env:
+                  SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
