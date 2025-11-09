@@ -18,6 +18,9 @@ jobs:
           echo "${{ secrets.VPS_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
 
+      - name: Test SSH connection in debug
+        run: ssh -v -i ~/.ssh/id_rsa ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} hostname
+
       - name: Test SSH connection to VPS
         uses: appleboy/ssh-action@v1.2.2
         with:
