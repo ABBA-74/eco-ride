@@ -1,8 +1,27 @@
 
 services:
-###> doctrine/doctrine-bundle ###
+
+  ###> symfony/prod ###
+  app:
+    build:
+      context: .
+      target: prod
+    container_name: ecoride_app
+    environment:
+      APP_ENV: prod
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-app}:${POSTGRES_PASSWORD:-!ChangeMe!}@database:5432/${POSTGRES_DB:-app}?serverVersion=${POSTGRES_VERSION:-16}&charset=utf8"
+    depends_on:
+      - database
+    volumes:
+      - ./:/app:ro
+    expose:
+      - "9000"
+  ###< symfony/prod ###
+
+  ###> doctrine/doctrine-bundle ###
   database:
     image: postgres:${POSTGRES_VERSION:-16}-alpine
+    container_name: ecoride_db
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-app}
       # You should definitely change the password in production
@@ -17,9 +36,19 @@ services:
       - database_data:/var/lib/postgresql/data:rw
       # You may use a bind-mounted host directory instead, so that it is harder to accidentally remove the volume and lose all your data!
       # - ./docker/db/data:/var/lib/postgresql/data:rw
-###< doctrine/doctrine-bundle ###
+  ###< doctrine/doctrine-bundle ###
+
+  ###> adminer ###
+  adminer:
+    image: adminer
+    container_name: ecoride_adminer
+    restart: always
+    ports:
+      - 8080:8080
+  ###< adminer ###
 
 volumes:
 ###> doctrine/doctrine-bundle ###
   database_data:
+  database_test:
 ###< doctrine/doctrine-bundle ###
