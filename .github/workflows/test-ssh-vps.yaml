@@ -14,12 +14,50 @@ jobs:
 
       - name: Fix SSH key permissions
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.VPS_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
+            mkdir -p ~/.ssh
+            printf "%s\n" "${{ secrets.VPS_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+            chmod 600 ~/.ssh/id_rsa
 
       - name: Test SSH connection in debug
         run: ssh -v -i ~/.ssh/id_rsa ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} hostname
+
+      - name: Debug SSH key + environment
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          echo "SSH dir listing:" && ls -la ~/.ssh || true
+          echo "id_rsa permissions:" && stat -c "%a %n" ~/.ssh/id_rsa || true
+
+          echo
+          echo "Show first and last line of private key (safe):"
+          sed -n '1p' ~/.ssh/id_rsa || echo "(no file)"
+          sed -n '$p' ~/.ssh/id_rsa || echo "(no file)"
+
+          echo
+          echo "Check if private key is encrypted/valid (ssh-keygen -y will fail for encrypted/invalid keys):"
+          if ssh-keygen -y -f ~/.ssh/id_rsa >/dev/null 2>&1; then
+            echo "OK: private key is NOT encrypted and is valid"
+            # generate public key and print fingerprint (safe)
+            ssh-keygen -y -f ~/.ssh/id_rsa > ~/.ssh/id_rsa.pub
+            echo "Public key fingerprint:"
+            ssh-keygen -lf ~/.ssh/id_rsa.pub || true
+          else
+            echo "::error::Private key appears to be passphrase-protected or invalid"
+            ssh-keygen -yf ~/.ssh/id_rsa 2>/dev/null || true
+            exit 1
+          fi
+
+          echo
+          echo "Known_hosts entry for host:"
+          ssh-keyscan -H "${{ secrets.VPS_HOST }}" 2>/dev/null | ssh-keygen -lf - || true
+
+      - name: SSH debug trace (verbose)
+        run: |
+          # Force publickey only, verbose output; log to file and print last 200 lines
+          ssh -vvv -o PreferredAuthentications=publickey -o PasswordAuthentication=no -i ~/.ssh/id_rsa ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} hostname 2>&1 | tee ssh-debug.log || true
+          echo "--- last 200 lines of ssh debug ---"
+          tail -n 200 ssh-debug.log
+        shell: bash
 
       - name: Test SSH connection to VPS
         uses: appleboy/ssh-action@v1.2.2
