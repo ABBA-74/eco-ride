@@ -10,7 +10,7 @@ jobs:
       - name: Add fingerprints to known_hosts
         run: |
           mkdir -p ~/.ssh
-          cat ${{ secrets.FINGERPRINTS }} >> ~/.ssh/known_hosts
+          echo ${{ secrets.FINGERPRINTS }} >> ~/.ssh/known_hosts
         #   ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
 
       - name: Fix SSH key permissions
