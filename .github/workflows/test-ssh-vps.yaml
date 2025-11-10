@@ -6,70 +6,35 @@ on:
 jobs:
   test-ssh:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Add fingerprints to known_hosts (recommended)
+      - name: 📥 Configure known_hosts
         run: |
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
-          printf '%s\n' "$FINGERPRINT" > ~/.ssh/known_hosts
+          printf '%s\n' "${{ secrets.FINGERPRINT }}" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
-        env:
-          FINGERPRINT: ${{ secrets.FINGERPRINT }}
 
-      - name: Fix SSH key permissions
+      - name: 🔑 Add SSH private key
         run: |
-            mkdir -p ~/.ssh
-            printf "%s\n" "${{ secrets.VPS_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-            chmod 600 ~/.ssh/id_rsa
-
-      - name: Test SSH connection in debug
-        run: ssh -v -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} hostname
-
-      - name: Debug SSH key + environment
-        run: |
-          set -euo pipefail
           mkdir -p ~/.ssh
-          echo "SSH dir listing:" && ls -la ~/.ssh || true
-          echo "id_rsa permissions:" && stat -c "%a %n" ~/.ssh/id_rsa || true
+          echo "${{ secrets.VPS_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
 
-          echo
-          echo "Show first and last line of private key (safe):"
-          sed -n '1p' ~/.ssh/id_rsa || echo "(no file)"
-          sed -n '$p' ~/.ssh/id_rsa || echo "(no file)"
-
-          echo
-          echo "Check if private key is encrypted/valid (ssh-keygen -y will fail for encrypted/invalid keys):"
-          if ssh-keygen -y -f ~/.ssh/id_rsa >/dev/null 2>&1; then
-            echo "OK: private key is NOT encrypted and is valid"
-            # generate public key and print fingerprint (safe)
-            ssh-keygen -y -f ~/.ssh/id_rsa > ~/.ssh/id_rsa.pub
-            echo "Public key fingerprint:"
-            ssh-keygen -lf ~/.ssh/id_rsa.pub || true
-          else
-            echo "::error::Private key appears to be passphrase-protected or invalid"
-            ssh-keygen -yf ~/.ssh/id_rsa 2>/dev/null || true
-            exit 1
-          fi
-
-          echo
-          echo "Known_hosts entry for host:"
-          ssh-keyscan -H "${{ secrets.VPS_HOST }}" 2>/dev/null | ssh-keygen -lf - || true
-
-      - name: SSH debug trace (verbose)
+      - name: 🧪 Test SSH connection (manual)
         run: |
-          # Force publickey only, verbose output; log to file and print last 200 lines
-          ssh -vvv -o PreferredAuthentications=publickey -o PasswordAuthentication=no -i ~/.ssh/id_rsa ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} hostname 2>&1 | tee ssh-debug.log || true
-          echo "--- last 200 lines of ssh debug ---"
-          tail -n 200 ssh-debug.log
-        shell: bash
+          ssh -o StrictHostKeyChecking=no \
+              -i ~/.ssh/id_rsa \
+              ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
+              "echo '✅ Manual SSH connection successful'; hostname; uptime"
 
-      - name: Test SSH connection to VPS
+      - name: 🚀 Test SSH connection (Appleboy)
         uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_PRIVATE_KEY }}
           script: |
-            echo "✅ SSH connection successful"
+            echo "✅ Appleboy SSH connection successful"
             hostname
             uptime
