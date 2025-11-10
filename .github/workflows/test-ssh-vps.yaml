@@ -16,8 +16,6 @@ jobs:
         env:
           FINGERPRINT: ${{ secrets.FINGERPRINT }}
 
-    FINGERPRINT: ${{ secrets.FINGERPRINT }}
-
       - name: Fix SSH key permissions
         run: |
             mkdir -p ~/.ssh
