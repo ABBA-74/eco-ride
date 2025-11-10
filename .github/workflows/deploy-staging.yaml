@@ -111,6 +111,15 @@ jobs:
             - name: 📥 Checkout repository
               uses: actions/checkout@v4
 
+            - name: 🧱 Ensure scripts directory exists on VPS
+              uses: appleboy/ssh-action@v1.2.2
+              with:
+                host: ${{ secrets.VPS_HOST }}
+                username: ${{ secrets.VPS_USER }}
+                key: ${{ secrets.VPS_PRIVATE_KEY }}
+                script: |
+                  mkdir -p /var/www/ecoride/scripts
+
             - name: 📂 Copy deploy script to VPS
               uses: appleboy/scp-action@v0.1.7
               with:
