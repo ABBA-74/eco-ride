@@ -7,10 +7,11 @@ jobs:
   test-ssh:
     runs-on: ubuntu-latest
     steps:
-      - name: Add VPS to known_hosts
+      - name: Add fingerprints to known_hosts
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+          cat ${{ secrets.FINGERPRINTS }} >> ~/.ssh/known_hosts
+        #   ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
 
       - name: Fix SSH key permissions
         run: |
