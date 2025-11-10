@@ -120,13 +120,18 @@ jobs:
                 script: |
                   mkdir -p /var/www/ecoride/scripts
 
+            - name: 📦 Prepare deploy script
+              run: |
+                # Move the script to the root temporarily to avoid recreating the .github/ folder on the VPS
+                mv .github/scripts/deploy-staging.sh deploy-staging.sh
+
             - name: 📂 Copy deploy script to VPS
               uses: appleboy/scp-action@v0.1.7
               with:
                 host: ${{ secrets.VPS_HOST }}
                 username: ${{ secrets.VPS_USER }}
                 key: ${{ secrets.VPS_PRIVATE_KEY }}
-                source: ".github/scripts/deploy-staging.sh"
+                source: "deploy-staging.sh"
                 target: "/var/www/ecoride/scripts/"
                 overwrite: true
 
