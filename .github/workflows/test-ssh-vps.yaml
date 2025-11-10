@@ -11,7 +11,6 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           echo ${{ secrets.FINGERPRINTS }} >> ~/.ssh/known_hosts
-        #   ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
 
       - name: Fix SSH key permissions
         run: |
