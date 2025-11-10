@@ -7,10 +7,16 @@ jobs:
   test-ssh:
     runs-on: ubuntu-latest
     steps:
-      - name: Add fingerprints to known_hosts
+      - name: Add fingerprints to known_hosts (recommended)
         run: |
           mkdir -p ~/.ssh
-          echo ${{ secrets.FINGERPRINTS }} >> ~/.ssh/known_hosts
+          chmod 700 ~/.ssh
+          printf '%s\n' "$FINGERPRINT" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+        env:
+          FINGERPRINT: ${{ secrets.FINGERPRINT }}
+
+    FINGERPRINT: ${{ secrets.FINGERPRINT }}
 
       - name: Fix SSH key permissions
         run: |
