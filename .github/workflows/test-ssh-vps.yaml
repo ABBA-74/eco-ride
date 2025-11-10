@@ -68,7 +68,7 @@ jobs:
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
-          key_path: ~/.ssh/id_rsa
+          key_path: ${{ secrets.VPS_PRIVATE_KEY }}
           script: |
             echo "✅ SSH connection successful"
             hostname
