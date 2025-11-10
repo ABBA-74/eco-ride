@@ -108,6 +108,9 @@ jobs:
         needs: build
 
         steps:
+            - name: 📥 Checkout repository
+              uses: actions/checkout@v4
+
             - name: 📂 Copy deploy script to VPS
               uses: appleboy/scp-action@v0.1.7
               with:
@@ -116,7 +119,7 @@ jobs:
                 key: ${{ secrets.VPS_PRIVATE_KEY }}
                 source: ".github/scripts/deploy-staging.sh"
                 target: "/var/www/ecoride/scripts/"
-                overwrite: true   # ✅ remplace l'ancien script s'il existe
+                overwrite: true
 
             - name: 🚀 Deploy to VPS via SSH
               uses: appleboy/ssh-action@v1.2.2
