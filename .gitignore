@@ -29,3 +29,7 @@ docker/nginx/*.log
 ###> Ignore local documentation ###
 /docs/local
 ###< Ignore local documentation ###
+
+###> Ignore Docker staging env file ###
+.env.docker.staging
+###< Ignore Docker staging env file ###

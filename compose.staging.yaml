@@ -2,8 +2,8 @@
 services:
   ###> symfony/staging ###
   app_staging:
-    image: ${DOCKER_IMAGE:-tata}:latest
-    container_name: ${CONTAINER_NAME_STAGING:-ecoride_app_staging}
+    image: ${DOCKER_IMAGE}:latest
+    container_name: ${CONTAINER_NAME_STAGING}
     restart: always
     environment:
       APP_ENV: staging
@@ -24,13 +24,13 @@ services:
     container_name: ecoride_db_staging
     restart: always
     environment:
-      POSTGRES_DB: ${POSTGRES_DB_STAGING:-app_test_staging}
-      POSTGRES_USER: ${POSTGRES_USER_STAGING:-!ChangeMe!}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_STAGING:-app_staging}
+      POSTGRES_DB: ${POSTGRES_DB_STAGING}
+      POSTGRES_USER: ${POSTGRES_USER_STAGING}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_STAGING}
     volumes:
       - database_staging_data:/var/lib/postgresql/data:rw
     healthcheck:
-      test: ["CMD", "pg_isready", "-d", "${POSTGRES_DB_STAGING:-app_test_staging}", "-U", "${POSTGRES_USER_STAGING:-!ChangeMe!}"]
+      test: ["CMD", "pg_isready", "-d", "${POSTGRES_DB_STAGING}", "-U", "${POSTGRES_USER_STAGING}"]
       timeout: 5s
       retries: 5
       start_period: 10s
