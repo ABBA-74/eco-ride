@@ -189,6 +189,7 @@ jobs:
                   MAILER_DSN=${{ secrets.MAILER_DSN }}
                   JWT_PASSPHRASE=${{ secrets.JWT_PASSPHRASE }}
                   CORS_ALLOW_ORIGIN=${{ secrets.CORS_ALLOW_ORIGIN }}
+                  MESSENGER_TRANSPORT_DSN=sync://
                   EOF
 
             - name: 🚀 Run deploy script on VPS
