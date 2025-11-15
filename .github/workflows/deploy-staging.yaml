@@ -34,6 +34,11 @@ env:
     SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
     SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
+    # 🔐 App secrets
+    MAILER_DSN: ${{ secrets.MAILER_DSN }}
+    JWT_PASSPHRASE: ${{ secrets.JWT_PASSPHRASE }}
+    CORS_ALLOW_ORIGIN: ${{ secrets.CORS_ALLOW_ORIGIN }}
+
 jobs:
     # ---------------------------------------------
     # 1️⃣ TEST JOB
@@ -45,16 +50,11 @@ jobs:
             postgres:
                 image: postgres:16-alpine
                 env:
-                    POSTGRES_DB: ${{ env.POSTGRES_DB }}
-                    POSTGRES_USER: ${{ env.POSTGRES_USER }}
-                    POSTGRES_PASSWORD: ${{ env.POSTGRES_PASSWORD }}
+                    POSTGRES_DB: testdb
+                    POSTGRES_USER: test
+                    POSTGRES_PASSWORD: test
                 ports:
                     - 5432:5432
-                options: >-
-                    --health-cmd="pg_isready -U $POSTGRES_USER -d $POSTGRES_DB"
-                    --health-interval=10s
-                    --health-timeout=5s
-                    --health-retries=5
 
         steps:
             - name: Checkout code
@@ -67,27 +67,24 @@ jobs:
                   extensions: mbstring, intl, pdo_pgsql
                   coverage: none
 
-            - name: 🧩 Install Composer dependencies
+            - name: 🔧 Override DATABASE_URL for GitHub Actions
+              run: echo "DATABASE_URL=postgresql://test:test@postgres:5432/testdb" >> $GITHUB_ENV
+
+            - name: 🧩 Install Composer
               run: composer install --no-progress --prefer-dist
 
-            - name: 🎨 Install Symfony assets
-              run: php bin/console assets:install --env=staging
-
-            - name: 🧹 Clear Symfony cache
-              run: php bin/console cache:clear --env=staging
-
             - name: 📦 Compile asset mapper
-              run: php bin/console asset-map:compile
+              run: php bin/console asset-map:compile --env=test
 
-            - name: 🗄️ Create database (staging)
-              run: php bin/console doctrine:database:create --if-not-exists --env=staging
+            - name: 🗄️ Create database (test)
+              run: php bin/console doctrine:database:create --if-not-exists --env=test
 
-            - name: 🚧 Run migrations (staging)
-              run: php bin/console doctrine:migrations:migrate --env=staging --no-interaction
+            - name: 🚧 Run migrations (test)
+              run: php bin/console doctrine:migrations:migrate --env=test --no-interaction
 
-            - name: 📥 Load fixtures (staging)
+            - name: 📥 Load fixtures (test)
               if: env.LOAD_FIXTURES == 'true'
-              run: php bin/console doctrine:fixtures:load --env=staging --no-interaction
+              run: php bin/console doctrine:fixtures:load --env=test --no-interaction
               env:
                 LOAD_FIXTURES: ${{ env.LOAD_FIXTURES }}
 
@@ -152,6 +149,21 @@ jobs:
                 target: "/var/www/ecoride/scripts/"
                 overwrite: true
 
+            - name: 📦 Generate .env.staging on VPS
+              uses: appleboy/ssh-action@v1.2.2
+              with:
+                host: ${{ env.VPS_HOST }}
+                username: ${{ env.VPS_USER }}
+                key: ${{ env.VPS_PRIVATE_KEY }}
+                script: |
+                  echo "DATABASE_URL=${{ secrets.STAGING_DATABASE_URL }}" > /var/www/ecoride/.env.staging
+                  echo "APP_ENV=staging" >> /var/www/ecoride/.env.staging
+                  echo "APP_DEBUG=0" >> /var/www/ecoride/.env.staging
+                  echo "APP_SECRET=${{ secrets.APP_SECRET }}" >> /var/www/ecoride/.env.staging
+                  echo "MAILER_DSN=${{ secrets.MAILER_DSN }}" >> /var/www/ecoride/.env.staging
+                  echo "JWT_PASSPHRASE=${{ secrets.JWT_PASSPHRASE }}" >> /var/www/ecoride/.env.staging
+                  echo "CORS_ALLOW_ORIGIN=${{ secrets.CORS_ALLOW_ORIGIN }}" >> /var/www/ecoride/.env.staging
+
             - name: 🚀 Run deploy script on VPS
               uses: appleboy/ssh-action@v1.2.2
               with:
@@ -164,10 +176,6 @@ jobs:
 
                   DOCKER_IMAGE="${{ env.DOCKER_IMAGE }}" \
                   CONTAINER_NAME="${{ env.CONTAINER_NAME }}" \
-                  DATABASE_URL="${{ env.DATABASE_URL }}" \
-                  POSTGRES_DB="${{ env.POSTGRES_DB }}" \
-                  POSTGRES_USER="${{ env.POSTGRES_USER }}" \
-                  POSTGRES_PASSWORD="${{ env.POSTGRES_PASSWORD }}" \
                   LOAD_FIXTURES="${{ env.LOAD_FIXTURES }}" \
                   ./deploy-staging.sh
 

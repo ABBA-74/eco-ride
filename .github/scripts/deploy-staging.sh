@@ -8,10 +8,18 @@ echo "🚀 Starting Staging Deployment..."
 # =============================
 [ -z "$DOCKER_IMAGE" ] && { echo "❌ Error: DOCKER_IMAGE not defined."; exit 1; }
 [ -z "$CONTAINER_NAME" ] && { echo "❌ Error: CONTAINER_NAME not defined."; exit 1; }
-[ -z "$DATABASE_URL" ] && { echo "❌ Error: DATABASE_URL not defined."; exit 1; }
+
+
+ENV_FILE="/var/www/ecoride/.env.staging"
+
+if [ ! -f "$ENV_FILE" ]; then
+  echo "❌ Error: $ENV_FILE not found!"
+  exit 1
+fi
 
 echo "ℹ️ Docker Image: $DOCKER_IMAGE"
 echo "ℹ️ Container: $CONTAINER_NAME"
+echo "ℹ️ Env File: $ENV_FILE"
 echo "ℹ️ Fixtures: ${LOAD_FIXTURES:-false}"
 
 # =============================
@@ -34,9 +42,7 @@ echo "✅ Previous container stopped and removed."
 echo "🚀 Launching new container..."
 docker run -d --name $CONTAINER_NAME \
   --restart always \
-  -e APP_ENV=staging \
-  -e APP_DEBUG=0 \
-  -e DATABASE_URL="$DATABASE_URL" \
+  --env-file "$ENV_FILE" \
   -p 9001:80 \
   $DOCKER_IMAGE:latest
 
