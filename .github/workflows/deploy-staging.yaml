@@ -20,7 +20,6 @@ env:
     CONTAINER_NAME: ${{ secrets.CONTAINER_NAME_STAGING }}
 
     # 🔐 DB (staging)
-    DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
     POSTGRES_DB: ${{ secrets.POSTGRES_DB_STAGING }}
     POSTGRES_USER: ${{ secrets.POSTGRES_USER_STAGING }}
     POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD_STAGING }}
