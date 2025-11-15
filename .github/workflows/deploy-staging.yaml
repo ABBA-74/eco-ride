@@ -190,6 +190,7 @@ jobs:
                   JWT_PASSPHRASE=${{ secrets.JWT_PASSPHRASE }}
                   CORS_ALLOW_ORIGIN=${{ secrets.CORS_ALLOW_ORIGIN }}
                   MESSENGER_TRANSPORT_DSN=sync://
+                  DEFAULT_URI=${{ secrets.DEFAULT_URI_STAGING }}
                   EOF
 
             - name: 🚀 Run deploy script on VPS
