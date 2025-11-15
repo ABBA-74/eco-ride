@@ -25,3 +25,7 @@ compose.override.yaml
 ###> Ignore Nginx log files ###
 docker/nginx/*.log
 ###< Ignore Nginx log files ###
+
+###> Ignore local documentation ###
+/docs/local
+###< Ignore local documentation ###
