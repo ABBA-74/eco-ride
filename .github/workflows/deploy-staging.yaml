@@ -70,6 +70,9 @@ jobs:
             - name: 🧩 Install Composer
               run: composer install --no-progress --prefer-dist --no-scripts
 
+            - name: 📦 Install importmap vendor assets
+              run: php bin/console importmap:install
+
             - name: 📦 Compile asset mapper
               run: php bin/console asset-map:compile --env=test
 
