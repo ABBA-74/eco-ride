@@ -176,13 +176,13 @@ jobs:
                 username: ${{ env.VPS_USER }}
                 key: ${{ env.VPS_PRIVATE_KEY }}
                 script: |
+                  echo "DOCKER_IMAGE=${{ env.DOCKER_IMAGE }}" >> /var/www/ecoride/.env.staging
+                  echo "CONTAINER_NAME_STAGING=${{ secrets.CONTAINER_NAME_STAGING }}" >> /var/www/ecoride/.env.staging
                   echo "DATABASE_URL=${{ secrets.STAGING_DATABASE_URL }}" > /var/www/ecoride/.env.staging
 
                   echo "POSTGRES_DB_STAGING=${{ secrets.POSTGRES_DB_STAGING }}" >> /var/www/ecoride/.env.staging
                   echo "POSTGRES_USER_STAGING=${{ secrets.POSTGRES_USER_STAGING }}" >> /var/www/ecoride/.env.staging
                   echo "POSTGRES_PASSWORD_STAGING=${{ secrets.POSTGRES_PASSWORD_STAGING }}" >> /var/www/ecoride/.env.staging
-
-                  echo "CONTAINER_NAME_STAGING=${{ secrets.CONTAINER_NAME_STAGING }}" >> /var/www/ecoride/.env.staging
 
                   echo "APP_ENV=staging" >> /var/www/ecoride/.env.staging
                   echo "APP_DEBUG=0" >> /var/www/ecoride/.env.staging

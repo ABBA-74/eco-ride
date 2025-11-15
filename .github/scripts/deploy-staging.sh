@@ -29,6 +29,14 @@ cd "$APP_DIR"
 
 COMPOSE_CMD="docker compose --env-file $ENV_FILE -f $COMPOSE_FILE"
 
+# =============================
+#  0️⃣ Cleanup legacy container
+# =============================
+echo "🧹 Removing legacy container (if exists)..."
+docker stop "$CONTAINER_NAME" 2>/dev/null || true
+docker rm "$CONTAINER_NAME" 2>/dev/null || true
+echo "✅ Legacy container removed."
+
 
 # =============================
 #  1️⃣ Pull latest image
