@@ -70,14 +70,8 @@ jobs:
             - name: 🔧 Override DATABASE_URL for GitHub Actions
               run: echo "DATABASE_URL=postgresql://test:test@postgres:5432/testdb" >> $GITHUB_ENV
 
-            - name: Disable Symfony auto-scripts during composer install
-              run: |
-                echo "SYMFONY_SKIP_CACHE=1" >> $GITHUB_ENV
-                echo "SYMFONY_SKIP_DATABASE=1" >> $GITHUB_ENV
-                echo "SYMFONY_DOTENV_VARS=1" >> $GITHUB_ENV
-
             - name: 🧩 Install Composer
-              run: composer install --no-progress --prefer-dist
+              run: composer install --no-progress --prefer-dist --no-scripts
 
             - name: 📦 Compile asset mapper
               run: php bin/console asset-map:compile --env=test
