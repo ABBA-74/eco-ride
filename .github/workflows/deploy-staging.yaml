@@ -73,6 +73,11 @@ jobs:
             - name: 📦 Install importmap vendor assets
               run: php bin/console importmap:install
 
+            - name: Override DATABASE_URL for test environment
+              run: |
+                echo "DATABASE_URL=postgresql://test:test@postgres:5432/testdb" >> $GITHUB_ENV
+                echo "APP_ENV=test" >> $GITHUB_ENV
+
             - name: 📦 Compile asset mapper
               run: php bin/console asset-map:compile --env=test
 
