@@ -9,17 +9,34 @@ on:
             - main
 
 env:
-    DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/ecoride
-    CONTAINER_NAME: ecoride_staging
-    POSTGRES_DB: app_staging
-    POSTGRES_USER: app
-    POSTGRES_PASSWORD: ${{ secrets.TEST_DB_PASSWORD }}
     APP_ENV: staging
     APP_DEBUG: 0
+    LOAD_FIXTURES: ${{ secrets.LOAD_FIXTURES }}
+
+    # 🐳 Docker
+    DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+    DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+    DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/ecoride
+    CONTAINER_NAME: ${{ secrets.CONTAINER_NAME_STAGING }}
+
+    # 🔐 DB (staging)
+    DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+    POSTGRES_DB: ${{ secrets.POSTGRES_DB_STAGING }}
+    POSTGRES_USER: ${{ secrets.POSTGRES_USER_STAGING }}
+    POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD_STAGING }}
+
+    # ⚙️ VPS
+    VPS_HOST: ${{ secrets.VPS_HOST }}
+    VPS_USER: ${{ secrets.VPS_USER }}
+    VPS_PRIVATE_KEY: ${{ secrets.VPS_PRIVATE_KEY }}
+
+    # 🔔 Slack
+    SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+    SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
 
 jobs:
     # ---------------------------------------------
-    # 1. TEST JOB
+    # 1️⃣ TEST JOB
     # ---------------------------------------------
     tests:
         runs-on: ubuntu-latest
@@ -56,7 +73,7 @@ jobs:
             - name: 🎨 Install Symfony assets
               run: php bin/console assets:install --env=staging
 
-            - name: 🧹 Clear Symfony staging cache
+            - name: 🧹 Clear Symfony cache
               run: php bin/console cache:clear --env=staging
 
             - name: 📦 Compile asset mapper
@@ -72,13 +89,13 @@ jobs:
               if: env.LOAD_FIXTURES == 'true'
               run: php bin/console doctrine:fixtures:load --env=staging --no-interaction
               env:
-                LOAD_FIXTURES: ${{ secrets.LOAD_FIXTURES }}
+                LOAD_FIXTURES: ${{ env.LOAD_FIXTURES }}
 
             - name: ✅ Run PHPUnit tests (TestDox)
               run: php bin/phpunit --testdox
 
     # ---------------------------------------------
-    # 2. BUILD JOB
+    # 2️⃣ BUILD JOB
     # ---------------------------------------------
     build:
         runs-on: ubuntu-latest
@@ -88,20 +105,20 @@ jobs:
             - name: Checkout code
               uses: actions/checkout@v4
 
-            - name: 🔐 Log in to Docker Hub
+            - name: 🔐 Login to Docker Hub
               uses: docker/login-action@v3
               with:
-                  username: ${{ secrets.DOCKERHUB_USERNAME }}
-                  password: ${{ secrets.DOCKERHUB_TOKEN }}
+                  username: ${{ env.DOCKERHUB_USERNAME }}
+                  password: ${{ env.DOCKERHUB_TOKEN }}
 
             - name: 🐳 Build Docker image (staging)
-              run: docker build --target=dev -t $DOCKER_IMAGE:latest .
+              run: docker build --no-cache --target=prod -t $DOCKER_IMAGE:latest .
 
             - name: 📤 Push Docker image
               run: docker push $DOCKER_IMAGE:latest
 
     # ---------------------------------------------
-    # 3. DEPLOY JOB
+    # 3️⃣ DEPLOY JOB
     # ---------------------------------------------
     deploy:
         runs-on: ubuntu-latest
@@ -111,47 +128,51 @@ jobs:
             - name: 📥 Checkout repository
               uses: actions/checkout@v4
 
-            - name: 🧱 Ensure scripts directory exists on VPS
-              uses: appleboy/ssh-action@v1.2.2
-              with:
-                host: ${{ secrets.VPS_HOST }}
-                username: ${{ secrets.VPS_USER }}
-                key: ${{ secrets.VPS_PRIVATE_KEY }}
-                script: |
-                  mkdir -p /var/www/ecoride/scripts
-
             - name: 📦 Prepare deploy script
               run: |
                 # Move the script to the root temporarily to avoid recreating the .github/ folder on the VPS
                 mv .github/scripts/deploy-staging.sh deploy-staging.sh
 
+            - name: 🧱 Ensure scripts directory exists on VPS
+              uses: appleboy/ssh-action@v1.2.2
+              with:
+                host: ${{ env.VPS_HOST }}
+                username: ${{ env.VPS_USER }}
+                key: ${{ env.VPS_PRIVATE_KEY }}
+                script: |
+                  mkdir -p /var/www/ecoride/scripts
+
             - name: 📂 Copy deploy script to VPS
               uses: appleboy/scp-action@v0.1.7
               with:
-                host: ${{ secrets.VPS_HOST }}
-                username: ${{ secrets.VPS_USER }}
-                key: ${{ secrets.VPS_PRIVATE_KEY }}
+                host: ${{ env.VPS_HOST }}
+                username: ${{ env.VPS_USER }}
+                key: ${{ env.VPS_PRIVATE_KEY }}
                 source: "deploy-staging.sh"
                 target: "/var/www/ecoride/scripts/"
                 overwrite: true
 
-            - name: 🚀 Deploy to VPS via SSH
+            - name: 🚀 Run deploy script on VPS
               uses: appleboy/ssh-action@v1.2.2
               with:
-                host: ${{ secrets.VPS_HOST }}
-                username: ${{ secrets.VPS_USER }}
-                key: ${{ secrets.VPS_PRIVATE_KEY }}
+                host: ${{ env.VPS_HOST }}
+                username: ${{ env.VPS_USER }}
+                key: ${{ env.VPS_PRIVATE_KEY }}
                 script: |
                   cd /var/www/ecoride/scripts/
                   chmod +x deploy-staging.sh
+
                   DOCKER_IMAGE="${{ env.DOCKER_IMAGE }}" \
                   CONTAINER_NAME="${{ env.CONTAINER_NAME }}" \
-                  DATABASE_URL="${{ secrets.STAGING_DATABASE_URL }}" \
-                  LOAD_FIXTURES="${{ secrets.LOAD_FIXTURES }}" \
+                  DATABASE_URL="${{ env.DATABASE_URL }}" \
+                  POSTGRES_DB="${{ env.POSTGRES_DB }}" \
+                  POSTGRES_USER="${{ env.POSTGRES_USER }}" \
+                  POSTGRES_PASSWORD="${{ env.POSTGRES_PASSWORD }}" \
+                  LOAD_FIXTURES="${{ env.LOAD_FIXTURES }}" \
                   ./deploy-staging.sh
 
     # ---------------------------------------------
-    # 4. SLACK NOTIFICATION JOB
+    #  4️⃣ SLACK NOTIFICATION JOB
     # ---------------------------------------------
     notify:
         runs-on: ubuntu-latest
@@ -164,8 +185,8 @@ jobs:
               with:
                   payload: |
                       {
-                        "channel": "${{ secrets.SLACK_CHANNEL_ID }}",
+                        "channel": "${{ env.SLACK_CHANNEL_ID }}",
                         "text": ":construction: *Déploiement STAGING terminé*\n\n:rocket: *Projet* : `Ecoride`\n:computer: *Environnement* : `staging`\n:technologist: *Déclenché par* : `${{ github.actor }}`\n:scroll: *Commit* : <https://github.com/${{ github.repository }}/commit/${{ github.sha }}>\n:clipboard: *Statut* : `${{ job.status }}`\n\n:white_check_mark: _Tests lancés automatiquement avant déploiement._"
                       }
               env:
-                  SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+                  SLACK_BOT_TOKEN: ${{ env.SLACK_BOT_TOKEN }}

@@ -1,0 +1,40 @@
+# Docker Compose file for Symfony staging environment deployment
+services:
+  ###> symfony/staging ###
+  app_staging:
+    image: ${DOCKER_IMAGE:-tata}:latest
+    container_name: ${CONTAINER_NAME_STAGING:-ecoride_app_staging}
+    restart: always
+    environment:
+      APP_ENV: staging
+      APP_DEBUG: 0
+      DATABASE_URL: ${DATABASE_URL}
+    working_dir: /app
+    ports:
+      - "9001:80"
+    depends_on:
+      - database_staging
+    volumes:
+      - ./:/app:rw,cached
+  ###< symfony/staging ###
+
+  ###> symfony/database_staging ###
+  database_staging:
+    image: postgres:${POSTGRES_VERSION:-16}-alpine
+    container_name: ecoride_db_staging
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB_STAGING:-app_test_staging}
+      POSTGRES_USER: ${POSTGRES_USER_STAGING:-!ChangeMe!}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_STAGING:-app_staging}
+    volumes:
+      - database_staging_data:/var/lib/postgresql/data:rw
+    healthcheck:
+      test: ["CMD", "pg_isready", "-d", "${POSTGRES_DB_STAGING:-app_test_staging}", "-U", "${POSTGRES_USER_STAGING:-!ChangeMe!}"]
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+  ###< symfony/database_staging ###
+
+volumes:
+  database_staging_data:

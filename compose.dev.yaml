@@ -1,0 +1,87 @@
+# Docker Compose file for development and staging environments local setup
+services:
+
+  ###> symfony/dev ###
+  app:
+    build:
+      context: .
+      target: dev  # force target to dev
+    container_name: ecoride_app_dev
+    environment:
+      APP_ENV: dev
+    volumes:
+      - ./:/app:rw,cached
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+  ###< symfony/dev ###
+
+
+  app_staging:
+    build:
+      context: .
+      target: dev
+    container_name: ecoride_app_staging
+    environment:
+      APP_ENV: staging
+      APP_DEBUG: 0
+      DATABASE_URL: "postgresql://app:!ChangeMe!@database:5432/app_staging?serverVersion=16&charset=utf8"
+    volumes:
+      - ./:/app:rw,cached
+    # ports:
+      # - "8082:80" # ⚠️ différent de ton app_dev (8081:80)
+    depends_on:
+      - database
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+
+  ###> nginx/web ###
+  web:
+    image: nginx:stable-alpine
+    container_name: ecoride_nginx
+    ports:
+      - "8081:80" # pour le dev
+      - "8082:80" # pour le staging
+    volumes:
+      - ./:/app:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./docker/nginx/staging.conf:/etc/nginx/conf.d/staging.conf:ro
+    depends_on:
+      - app
+      - app_staging
+  ###< nginx/web ###
+
+  ###> doctrine/doctrine-bundle ###
+  database:
+    ports:
+      - "5432:5432"
+  ###< doctrine/doctrine-bundle ###
+
+  ###> doctrine/doctrine-bundle ###
+  database_test:
+    image: postgres:${POSTGRES_VERSION:-16}-alpine
+    container_name: ecoride_db_test
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB_TEST:-app_test}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-!ChangeMe!}
+      POSTGRES_USER: ${POSTGRES_USER:-app}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-d", "${POSTGRES_DB:-app_test}", "-U", "${POSTGRES_USER:-app}"]
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    volumes:
+      - database_test:/var/lib/postgresql/data
+  ###< doctrine/doctrine-bundle ###
+
+  ###> symfony/mailer ###
+  mailhog:
+    image: mailhog/mailhog
+    container_name: ecoride_mailhog
+    logging:
+      driver: 'none'
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+  ###< symfony/mailer ###

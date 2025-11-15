@@ -1,17 +1,37 @@
 name: Deploy Ecoride Production
 
 on:
-    workflow_dispatch: # manual trigger only
+    workflow_dispatch:
 
 env:
-    DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/ecoride
-    CONTAINER_NAME: ecoride_app
     APP_ENV: prod
     APP_DEBUG: 0
 
+    # 🐳 Docker
+    DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+    DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+    DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/ecoride
+    CONTAINER_NAME: ${{ secrets.CONTAINER_NAME_PROD }}
+
+
+    # 🔐 DB (prod)
+    DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+    POSTGRES_DB: ${{ secrets.POSTGRES_DB_PROD }}
+    POSTGRES_USER: ${{ secrets.POSTGRES_USER_PROD }}
+    POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD_PROD }}
+
+    # ⚙️ VPS
+    VPS_HOST: ${{ secrets.VPS_HOST }}
+    VPS_USER: ${{ secrets.VPS_USER }}
+    VPS_PRIVATE_KEY: ${{ secrets.VPS_PRIVATE_KEY }}
+
+    # 🔔 Slack
+    SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
+    SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+
 jobs:
     # ---------------------------------------------
-    # 1. BUILD JOB (build assets, composer, docker)
+    # 1️⃣ BUILD JOB (build assets, composer, docker)
     # ---------------------------------------------
     build:
         runs-on: ubuntu-latest
@@ -30,17 +50,17 @@ jobs:
             - name: 🧩 Install Composer dependencies
               run: composer install --no-dev --optimize-autoloader --no-interaction
 
-            - name: 🧹 Clear Symfony prod cache
+            - name: 🧹 Clear Symfony cache
               run: php bin/console cache:clear --env=prod --no-interaction
 
             - name: 📦 Compile Symfony asset mapper
               run: php bin/console asset-map:compile
 
-            - name: 🔐 Log in to Docker Hub
+            - name: 🔐 Login to Docker Hub
               uses: docker/login-action@v3
               with:
-                  username: ${{ secrets.DOCKERHUB_USERNAME }}
-                  password: ${{ secrets.DOCKERHUB_TOKEN }}
+                  username: ${{ env.DOCKERHUB_USERNAME }}
+                  password: ${{ env.DOCKERHUB_TOKEN }}
 
             - name: 🐳 Build Docker image (prod)
               run: docker build --target=prod -t $DOCKER_IMAGE:latest .
@@ -49,31 +69,55 @@ jobs:
               run: docker push $DOCKER_IMAGE:latest
 
     # ---------------------------------------------
-    # 2. DEPLOY JOB (ssh on VPS + docker run)
+    #  2️⃣ DEPLOY JOB (ssh on VPS + docker run)
     # ---------------------------------------------
     deploy:
         runs-on: ubuntu-latest
         needs: build
 
         steps:
-            - name: 🚀 Deploy on VPS via SSH
+            - name: 📥 Checkout repository
+              uses: actions/checkout@v4
+
+            - name: 📦 Prepare deploy script
+              run: |
+                mv .github/scripts/deploy-prod.sh deploy-prod.sh
+
+            - name: 🧱 Ensure scripts directory exists on VPS
               uses: appleboy/ssh-action@v1.2.2
               with:
-                  host: ${{ secrets.VPS_HOST }}
-                  username: ${{ secrets.VPS_USER }}
-                  key: ${{ secrets.VPS_PRIVATE_KEY }}
-                  script: |
-                      docker pull $DOCKER_IMAGE:latest
-                      docker stop $CONTAINER_NAME || true
-                      docker rm $CONTAINER_NAME || true
-                      docker run -d --name $CONTAINER_NAME \
-                        -e APP_ENV=prod \
-                        -e APP_DEBUG=0 \
-                        -p 9000:80 \
-                        $DOCKER_IMAGE:latest
+                host: ${{ env.VPS_HOST }}
+                username: ${{ env.VPS_USER }}
+                key: ${{ env.VPS_PRIVATE_KEY }}
+                script: |
+                  mkdir -p /var/www/ecoride/scripts
+
+            - name: 📂 Copy deploy script to VPS
+              uses: appleboy/scp-action@v0.1.7
+              with:
+                host: ${{ env.VPS_HOST }}
+                username: ${{ env.VPS_USER }}
+                key: ${{ env.VPS_PRIVATE_KEY }}
+                source: "deploy-prod.sh"
+                target: "/var/www/ecoride/scripts/"
+                overwrite: true
+
+            - name: 🚀 Run deploy script on VPS
+              uses: appleboy/ssh-action@v1.2.2
+              with:
+                host: ${{ env.VPS_HOST }}
+                username: ${{ env.VPS_USER }}
+                key: ${{ env.VPS_PRIVATE_KEY }}
+                script: |
+                  cd /var/www/ecoride/scripts/
+                  chmod +x deploy-prod.sh
+                  DOCKER_IMAGE="${{ env.DOCKER_IMAGE }}" \
+                  CONTAINER_NAME="${{ env.CONTAINER_NAME }}" \
+                  DATABASE_URL="${{ env.DATABASE_URL }}" \
+                  ./deploy-prod.sh
 
     # ---------------------------------------------
-    # 3. SLACK NOTIFICATION JOB
+    # 3️⃣ SLACK NOTIFICATION JOB
     # ---------------------------------------------
     notify:
         runs-on: ubuntu-latest
@@ -86,8 +130,8 @@ jobs:
               with:
                   payload: |
                       {
-                        "channel": "${{ secrets.SLACK_CHANNEL_ID }}",
+                        "channel": "${{ env.SLACK_CHANNEL_ID }}",
                         "text": ":red_circle: *🚨 Déploiement PRODUCTION terminé !*\n\n:rocket: *Projet* : `Ecoride`\n:factory: *Environnement* : `production`\n:bust_in_silhouette: *Déclenché par* : `${{ github.actor }}`\n:link: *Voir le run* : <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}>\n:page_with_curl: *Commit* : <https://github.com/${{ github.repository }}/commit/${{ github.sha }}>\n\n*Statut* : `${{ job.status }}`\n\n:warning: _Merci de vérifier que tout fonctionne comme prévu._"
                       }
               env:
-                  SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+                  SLACK_BOT_TOKEN: ${{ env.SLACK_BOT_TOKEN }}

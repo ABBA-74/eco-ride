@@ -5,11 +5,12 @@
 # It installs PHP 8.4, common extensions,
 # and Composer for dependency management.
 ##############################################
-
 FROM php:8.4-fpm-alpine AS base
 
 # Set default working directory inside the container
 ENV APP_HOME=/app
+ENV APP_USER=ecoride
+
 WORKDIR $APP_HOME
 
 # Install system dependencies and PHP extensions
@@ -37,6 +38,9 @@ RUN apk add --no-cache \
 # This avoids installing Composer manually inside the container.
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
+# Add a non-root user for all stages and give permission to /app
+RUN addgroup -S $APP_USER && adduser -S -G $APP_USER $APP_USER \
+    && mkdir -p /app && chown -R $APP_USER:$APP_USER /app
 
 ##############################################
 # === STAGE 2: PRODUCTION IMAGE ==============
@@ -44,26 +48,34 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 # It contains only what is strictly necessary
 # to run the Symfony application efficiently.
 ##############################################
-
 FROM base AS prod
 
 # Set environment variables for production
 ENV APP_ENV=prod
 ENV DEBUG=0
 
+ENV COMPOSER_ALLOW_SUPERUSER=1
+
 # Copy the entire Symfony project into the container
 COPY . $APP_HOME
+
+# Ensure necessary directories exist and have correct permissions
+RUN mkdir -p var/cache var/log \
+    && chown -R $APP_USER:$APP_USER var \
+    && chmod -R 775 var
 
 # Install PHP dependencies (without dev packages)
 # --no-dev: excludes dev dependencies
 # --optimize-autoloader: improves performance
 # --no-interaction, --no-progress: cleaner logs
-RUN composer install --no-dev --no-interaction --no-progress --optimize-autoloader
+RUN composer install --no-dev --optimize-autoloader --no-scripts --no-interaction --no-progress
 
-# Clear and warm up Symfony cache to speed up the first request
-RUN php bin/console cache:clear
-RUN php bin/console cache:warmup
+# Clear and warm up Symfony cache done during deployment script
+# RUN php bin/console cache:clear --no-warmup --env=prod
+# RUN php bin/console cache:warmup --env=prod
 
+# Use the non-root user for the rest of the container execution
+USER $APP_USER
 
 ##############################################
 # === STAGE 3: DEVELOPMENT IMAGE ============
@@ -71,7 +83,6 @@ RUN php bin/console cache:warmup
 # It includes Xdebug for debugging and
 # mounts the source code as a volume.
 ##############################################
-
 FROM base AS dev
 
 # Set environment variables for development
@@ -97,3 +108,6 @@ RUN echo "xdebug.mode=debug" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.
 
 # You can uncomment the next line if you need Xdebug logs:
 # RUN echo "xdebug.log=/tmp/xdebug.log" >> /usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini
+
+# Use the non-root user for the rest of the container execution
+USER $APP_USER
