@@ -56,6 +56,10 @@ for i in {1..10}; do
   sleep 3
 done
 
+# Create a dummy .env if not exists to prevent Symfony errors
+echo "📄 Ensuring .env exists inside container..."
+docker exec $CONTAINER_NAME sh -lc 'if [ ! -f .env ]; then echo "# dummy env for Symfony (real values from .env.staging)" > .env; fi'
+
 # If still not ready, exit with error
 if ! docker exec $CONTAINER_NAME php -v >/dev/null 2>&1; then
   echo "❌ Container did not start successfully after 10 attempts."
