@@ -14,8 +14,6 @@ services:
       - "9001:80"
     depends_on:
       - database_staging
-    volumes:
-      - ./:/app:rw,cached
   ###< symfony/staging ###
 
   ###> symfony/database_staging ###
