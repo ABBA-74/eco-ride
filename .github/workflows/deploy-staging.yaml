@@ -67,9 +67,6 @@ jobs:
                   extensions: mbstring, intl, pdo_pgsql
                   coverage: none
 
-            - name: 🔧 Override DATABASE_URL for GitHub Actions
-              run: echo "DATABASE_URL=postgresql://test:test@postgres:5432/testdb" >> $GITHUB_ENV
-
             - name: 🧩 Install Composer
               run: composer install --no-progress --prefer-dist --no-scripts
 
