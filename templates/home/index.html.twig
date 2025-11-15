@@ -1,41 +1,77 @@
 {% extends 'base.html.twig' %}
 
-{% block title %}{{ parent() }} - Home{% endblock %}
-
+{% block title %}
+	{{ parent() }}
+	- Home
+{% endblock %}
+{% block javascripts %}
+	{{ parent() }}
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js" defer></script>
+{% endblock %}
 {% block body %}
 	<style>
+		@import url('https://fonts.googleapis.com/css2?family=Poppins:ital, wght@0, 100;0, 200;0, 300;0, 400;0, 500;0, 600;0, 700;0, 800;0, 900;1, 100;1, 200;1, 300;1, 400;1, 500;1, 600;1, 700;1, 800;1, 900 &display=swap');
 		body {
-			background-color: #121212;
+			background-color: #e8e8e8ff;
 			color: #e0e0e0;
-			font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+			font-family: 'Poppins', Tahoma, Geneva, Verdana, sans-serif;
 			display: flex;
 			flex-direction: column;
 			justify-content: center;
 			align-items: center;
 			height: 100vh;
 			margin: 0;
+			width: 100%;
+			overflow-x: hidden;
 		}
 
 		h1 {
 			font-size: 2.5rem;
-			color: #00c853;
+			color: #171717ff;
 			margin-bottom: 0.5rem;
+			text-align: center;
+			line-height: 1.2;
 		}
 
+		#lottie-car {
+			position: relative;
+			animation: slideIn 4.6s ease-in-out infinite;
+		}
+
+		@keyframes slideIn {
+			0% {
+				transform: translateX(-500px);
+				opacity: 0;
+			}
+			15% {
+				transform: translateX(0);
+				opacity: 1;
+			}
+			85% {
+				transform: translateX(0);
+				opacity: 1;
+			}
+			100% {
+				transform: translateX(500px);
+				opacity: 0;
+			}
+		}
 		p {
-			color: #bdbdbd;
+			color: #1b1b1bff;
 			font-size: 1.1rem;
 		}
 
 		.env-badge {
-			margin-top: 2rem;
-			padding: 0.5rem 1.5rem;
+			margin: auto;
+			padding: 0.8rem 1.5rem;
 			border-radius: 999px;
 			background-color: {% if app_env == 'prod' %}
-				#2e7d32 {% elseif app_env == 'staging' %}
-				#f9a825 {% else %}
+				#2e7d32{% elseif app_env == 'staging' %}
+				#f9a825{% else %}
 				#1565c0{% endif %};
 			color: #fff;
+			width: 160px;
+			text-align: center;
 			font-weight: bold;
 			text-transform: uppercase;
 		}
@@ -48,11 +84,37 @@
 		}
 	</style>
 	<div>
-		<h1>🚗 Welcome to EcoRide</h1>
-		<p>Your Symfony app is running successfully.</p>
+		<h1>EcoRide
+			<br/>
+			Adoptez un Passager</h1>
+		<div id="lottie-car" style="width: 300px; height: 300px; margin: auto;"></div>
+		<p style='text-align: center;'>Donnez un foyer à un siège vide. Il ne vous aboiera pas dessus et il paie sa part du carburant..</p>
 		<div class="env-badge">
+			Mode :
 			{{ app_env }}
 		</div>
 	</div>
-	<footer>EcoRide • Symfony 7 • Dark mode staging template</footer>
+	<footer>EcoRide • Symfony 7 - ABBA-DEV</footer>
+{% endblock %}
+
+
+{% block scripts %}
+	{{ parent() }}
+	<script>
+		const lottiePath = '{{ asset('/anim/car.json') }}';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if (typeof lottie !== 'undefined') {
+                lottie.loadAnimation({
+                container: document.getElementById('lottie-car'),
+                renderer: 'svg',
+                loop: true,
+                autoplay: true,
+                path: lottiePath
+                });
+            } else {
+            console.error("Animation lib not loaded.");
+            }
+        });
+	</script>
 {% endblock %}
