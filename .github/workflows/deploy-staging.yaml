@@ -159,6 +159,16 @@ jobs:
                 target: "/var/www/ecoride/scripts/"
                 overwrite: true
 
+            - name: 📂 Copy compose.staging.yaml to VPS
+              uses: appleboy/scp-action@v0.1.7
+              with:
+                host: ${{ env.VPS_HOST }}
+                username: ${{ env.VPS_USER }}
+                key: ${{ env.VPS_PRIVATE_KEY }}
+                source: "compose.staging.yaml"
+                target: "/var/www/ecoride/"
+                overwrite: true
+
             - name: 📦 Generate .env.staging on VPS
               uses: appleboy/ssh-action@v1.2.2
               with:
@@ -167,9 +177,14 @@ jobs:
                 key: ${{ env.VPS_PRIVATE_KEY }}
                 script: |
                   echo "DATABASE_URL=${{ secrets.STAGING_DATABASE_URL }}" > /var/www/ecoride/.env.staging
+                  echo "POSTGRES_DB_STAGING=${{ secrets.POSTGRES_DB_STAGING }}" >> /var/www/ecoride/.env.staging
+                  echo "POSTGRES_USER_STAGING=${{ secrets.POSTGRES_USER_STAGING }}" >> /var/www/ecoride/.env.staging
+                  echo "POSTGRES_PASSWORD_STAGING=${{ secrets.POSTGRES_PASSWORD_STAGING }}" >> /var/www/ecoride/.env.staging
+
                   echo "APP_ENV=staging" >> /var/www/ecoride/.env.staging
                   echo "APP_DEBUG=0" >> /var/www/ecoride/.env.staging
                   echo "APP_SECRET=${{ secrets.APP_SECRET }}" >> /var/www/ecoride/.env.staging
+
                   echo "MAILER_DSN=${{ secrets.MAILER_DSN }}" >> /var/www/ecoride/.env.staging
                   echo "JWT_PASSPHRASE=${{ secrets.JWT_PASSPHRASE }}" >> /var/www/ecoride/.env.staging
                   echo "CORS_ALLOW_ORIGIN=${{ secrets.CORS_ALLOW_ORIGIN }}" >> /var/www/ecoride/.env.staging
