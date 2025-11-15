@@ -73,7 +73,9 @@ jobs:
               run: php bin/console importmap:install
 
             - name: Force APP_ENV=test
-              run: echo "APP_ENV=test" >> $GITHUB_ENV
+              run: |
+                echo "APP_ENV=test" >> $GITHUB_ENV
+                echo "DATABASE_URL=postgresql://test:test@127.0.0.1:5432/testdb?serverVersion=16&charset=utf8" >> $GITHUB_ENV
 
             - name: 📦 Compile asset mapper
               run: php bin/console asset-map:compile --env=test
