@@ -135,10 +135,11 @@ jobs:
             - name: 📥 Checkout repository
               uses: actions/checkout@v4
 
-            - name: 📦 Prepare deploy script
+            - name: 📦 Prepare deploy script and nginx config
               run: |
                 # Move the script to the root temporarily to avoid recreating the .github/ folder on the VPS
-                mv .github/scripts/deploy-staging.sh deploy-staging.sh
+                cp .github/scripts/deploy-staging.sh deploy-staging.sh
+                cp docker/nginx/staging.conf docker_nginx_staging.conf
 
             - name: 🧱 Ensure scripts directory exists on VPS
               uses: appleboy/ssh-action@v1.2.2
@@ -167,6 +168,25 @@ jobs:
                 key: ${{ env.VPS_PRIVATE_KEY }}
                 source: "compose.staging.yaml"
                 target: "/var/www/ecoride/"
+                overwrite: true
+
+            - name: 🧱 Ensure nginx config directory on VPS
+              uses: appleboy/ssh-action@v1.2.2
+              with:
+                host: ${{ env.VPS_HOST }}
+                username: ${{ env.VPS_USER }}
+                key: ${{ env.VPS_PRIVATE_KEY }}
+                script: |
+                  mkdir -p /var/www/ecoride/docker/nginx
+
+            - name: 📂 Copy nginx staging.conf to VPS
+              uses: appleboy/scp-action@v0.1.7
+              with:
+                host: ${{ env.VPS_HOST }}
+                username: ${{ env.VPS_USER }}
+                key: ${{ env.VPS_PRIVATE_KEY }}
+                source: "docker_nginx_staging.conf"
+                target: "/var/www/ecoride/docker/nginx/"
                 overwrite: true
 
             - name: 📦 Generate .env.staging on VPS
