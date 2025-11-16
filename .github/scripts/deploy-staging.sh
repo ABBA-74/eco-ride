@@ -134,6 +134,12 @@ fi
 # =============================
 #  7️⃣ Importmap & Asset Map
 # =============================
+echo "🔑 Fixing permissions on assets..."
+$COMPOSE_CMD exec -T -u 0 app_staging sh -lc '
+  mkdir -p assets/vendor &&
+  chown -R ecoride:ecoride assets var
+'
+
 echo "📦 Installing importmap vendor assets..."
 $COMPOSE_CMD exec -T app_staging php bin/console importmap:install --env=staging --no-interaction
 
