@@ -15,11 +15,23 @@ services:
       CORS_ALLOW_ORIGIN: ${CORS_ALLOW_ORIGIN}
       DEFAULT_URI: ${DEFAULT_URI}
     working_dir: /app
-    ports:
-      - "9001:80"
     depends_on:
       - database_staging
   ###< symfony/staging ###
+
+  ###> symfony/web_staging ###
+  web_staging:
+    image: nginx:1.27-alpine
+    container_name: ecoride_web_staging
+    restart: always
+    depends_on:
+      - app_staging
+    ports:
+      - "9001:80"        # ton accès HTTP public
+    volumes:
+      - ./:/app:ro
+      - ./docker/nginx/staging.conf:/etc/nginx/conf.d/default.conf:ro
+  ###< symfony/web_staging ###
 
   ###> symfony/database_staging ###
   database_staging:
