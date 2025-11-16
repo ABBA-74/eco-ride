@@ -100,7 +100,12 @@ if ! $COMPOSE_CMD exec -T app_staging php -v >/dev/null 2>&1; then
 fi
 
 echo "📄 Ensuring .env exists inside app container..."
-$COMPOSE_CMD exec -T app_staging sh -lc 'if [ ! -f .env ]; then echo "# dummy env for Symfony (staging uses real env vars)" > .env; fi'
+$COMPOSE_CMD exec -T app_staging sh -lc '
+  if [ ! -f .env ]; then
+    echo "APP_ENV=${APP_ENV:-staging}" > .env
+    echo "APP_DEBUG=${APP_DEBUG:-0}" >> .env
+  fi
+'
 
 
 # =============================
