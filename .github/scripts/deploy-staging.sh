@@ -78,12 +78,12 @@ fi
 
 
 # =============================
-#  4️⃣ Start app container
+#  4️⃣ Start app + web containers
 # =============================
-echo "🚀 Starting app_staging..."
-$COMPOSE_CMD up -d app_staging
+echo "🚀 Starting app_staging and web_staging..."
+$COMPOSE_CMD up -d app_staging web_staging
 
-echo "🕐 Checking container startup..."
+echo "🕐 Checking app_staging startup.."
 for i in {1..10}; do
   if $COMPOSE_CMD exec -T app_staging php -v >/dev/null 2>&1; then
     echo "✅ App container is ready."
