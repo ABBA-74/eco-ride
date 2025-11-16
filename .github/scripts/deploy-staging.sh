@@ -131,24 +131,36 @@ else
   echo "⏩ Fixtures disabled, skipping."
 fi
 
+# =============================
+#  7️⃣ Importmap & Asset Map
+# =============================
+echo "📦 Installing importmap vendor assets..."
+$COMPOSE_CMD exec -T app_staging php bin/console importmap:install --env=staging --no-interaction
+
+echo "🎨 Compiling asset map..."
+$COMPOSE_CMD exec -T app_staging php bin/console asset-map:compile --env=staging
+
+echo "✅ Importmap and Asset Map ready."
+
 
 # =============================
-#  7️⃣ Clear cache
+#  8️⃣ Clear cache
 # =============================
 echo "🧹 Clearing cache..."
 $COMPOSE_CMD exec -T app_staging php bin/console cache:clear --env=staging --no-interaction
 $COMPOSE_CMD exec -T app_staging php bin/console cache:warmup --env=staging --no-interaction
+echo "✅ Cache cleared and warmed up."
 
 
 # =============================
-#  8️⃣ Cleanup old images
+#  9️⃣ Cleanup old images
 # =============================
 echo "🧹 Cleaning up old Docker images..."
 docker image prune -f || true
 
 
 # ============================
-#  9️⃣ HTTP health check
+#  HTTP health check
 # ============================
 echo "🌐 Testing HTTP endpoint (http://localhost:9001)..."
 
