@@ -134,20 +134,29 @@ echo "🧹 Clearing cache..."
 $COMPOSE_CMD exec -T app_staging php bin/console cache:clear --env=staging --no-interaction
 $COMPOSE_CMD exec -T app_staging php bin/console cache:warmup --env=staging --no-interaction
 
+
 # =============================
 #  8️⃣ Cleanup old images
 # =============================
 echo "🧹 Cleaning up old Docker images..."
 docker image prune -f || true
 
+
 # ============================
 #  9️⃣ HTTP health check
 # ============================
 echo "🌐 Testing HTTP endpoint (http://localhost:9001)..."
+
+# Petit délai pour laisser Nginx se stabiliser
+sleep 3
+
 if curl -sSf http://localhost:9001 > /dev/null; then
   echo "✅ Application responded successfully over HTTP"
 else
   echo "❌ Application did not respond over HTTP"
+  echo "📜 web_staging logs:"
+  $COMPOSE_CMD logs web_staging || true
+  echo "📜 app_staging logs:"
   $COMPOSE_CMD logs app_staging || true
   exit 1
 fi
