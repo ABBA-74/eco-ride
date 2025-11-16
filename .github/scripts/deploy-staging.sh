@@ -137,7 +137,7 @@ fi
 echo "🔑 Fixing permissions on assets..."
 $COMPOSE_CMD exec -T -u 0 app_staging sh -lc '
   mkdir -p assets/vendor &&
-  chown -R ecoride:ecoride assets var
+  chown -R ecoride:ecoride assets var public
 '
 
 echo "📦 Installing importmap vendor assets..."
