@@ -1,73 +1,222 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -Eeuo pipefail
 
-echo "🚀 Starting Production Deployment..."
+echo "🚀 Starting Ecoride Production Deployment..."
 
-# =============================
-#  0️⃣ Environment Variables Check
-# =============================
-[ -z "$DOCKER_IMAGE" ] && { echo "❌ Error: DOCKER_IMAGE not defined."; exit 1; }
-[ -z "$CONTAINER_NAME" ] && { echo "❌ Error: CONTAINER_NAME not defined."; exit 1; }
-[ -z "$DATABASE_URL" ] && { echo "❌ Error: DATABASE_URL not defined."; exit 1; }
-
-echo "ℹ️ Docker image: $DOCKER_IMAGE"
-echo "ℹ️ Container name: $CONTAINER_NAME"
+APP_DIR="/var/www/ecoride"
+COMPOSE_FILE="$APP_DIR/compose.prod.yaml"
+ENV_FILE="$APP_DIR/.env.prod"
 
 # =============================
-#  1️⃣ Retrieve Latest Docker Image
+# 1. Prerequisite checks
 # =============================
-echo "🐳 Pulling the latest Docker image..."
-docker pull "$DOCKER_IMAGE:latest"
-
-# =============================
-#  2️⃣ Stop & Clean Previous Container
-# =============================
-docker stop $CONTAINER_NAME || true
-docker rm $CONTAINER_NAME || true
-echo "✅ Previous container stopped and removed."
-
-# =============================
-#  3️⃣ Launch New Container
-# =============================
-echo "🚀 Launching new container..."
-docker run -d --name $CONTAINER_NAME \
-  --restart always \
-  -e APP_ENV=prod \
-  -e APP_DEBUG=0 \
-  -e DATABASE_URL="$DATABASE_URL" \
-  -p 9000:80 \
-  $DOCKER_IMAGE:latest
-
-# =============================
-#  4️⃣ Wait for Container Readiness
-# =============================
-echo "🕐 Checking container startup..."
-for i in {1..10}; do
-  if docker exec $CONTAINER_NAME php -v >/dev/null 2>&1; then
-    echo "✅ Container is ready."
-    break
-  fi
-  echo "⏳ Waiting for container... ($i/10)"
-  sleep 3
+for file in "$COMPOSE_FILE" "$ENV_FILE" "$APP_DIR/docker/nginx/prod.conf"; do
+    if [ ! -f "$file" ]; then
+        echo "❌ Missing required file: $file"
+        exit 1
+    fi
 done
 
-# =============================
-#  5️⃣ Run Database Migrations
-# =============================
-echo "⚙️ Running database migrations..."
-docker exec $CONTAINER_NAME php bin/console doctrine:database:create --if-not-exists --env=prod
-docker exec $CONTAINER_NAME php bin/console doctrine:migrations:migrate --env=prod --no-interaction
-echo "✅ Database is ready and migrations have been applied."
+cd "$APP_DIR"
+
+compose() {
+    docker compose \
+        --env-file "$ENV_FILE" \
+        -f "$COMPOSE_FILE" \
+        "$@"
+}
+
+echo "🔍 Validating Docker Compose configuration..."
+compose config --quiet
 
 # =============================
-#  6️⃣ Cleanup Old Docker Images
+# 2. Pull images
 # =============================
-echo "🧹 Cleaning up old Docker images..."
-docker image prune -f
-echo "✅ Old Docker images cleaned up."
+echo "🐳 Pulling production images..."
+compose pull app_prod database_prod web_prod
 
 # =============================
-#  7️⃣ Deployment Complete
+# 3. Start PostgreSQL
 # =============================
-echo "🎉 Production deployment completed successfully!"
-exit 0
+echo "🗄️ Starting PostgreSQL..."
+compose up -d database_prod
+
+echo "⏳ Waiting for PostgreSQL health check..."
+
+DB_READY=false
+
+for i in {1..30}; do
+    STATUS=$(docker inspect \
+        --format '{{.State.Health.Status}}' \
+        ecoride_db_prod 2>/dev/null || echo "unknown")
+
+    if [ "$STATUS" = "healthy" ]; then
+        DB_READY=true
+        break
+    fi
+
+    echo "⏳ PostgreSQL: $STATUS ($i/30)"
+    sleep 3
+done
+
+if [ "$DB_READY" != "true" ]; then
+    echo "❌ PostgreSQL is not healthy."
+    compose logs --tail=50 database_prod
+    exit 1
+fi
+
+echo "✅ PostgreSQL is healthy."
+
+# =============================
+# 4. Remove legacy Docker container
+# =============================
+# The previous deployment used docker run with
+# the same container name as the new Compose service.
+
+if docker ps -a --format '{{.Names}}' | grep -Fxq "ecoride_app_prod"; then
+    COMPOSE_PROJECT=$(docker inspect \
+        --format '{{index .Config.Labels "com.docker.compose.project"}}' \
+        ecoride_app_prod 2>/dev/null || true)
+
+    if [ -z "$COMPOSE_PROJECT" ] || [ "$COMPOSE_PROJECT" = "<no value>" ]; then
+        echo "🧹 Removing legacy Docker container..."
+        docker stop ecoride_app_prod
+        docker rm ecoride_app_prod
+    elif [ "$COMPOSE_PROJECT" != "ecoride-prod" ]; then
+        echo "❌ Container belongs to another Compose project: $COMPOSE_PROJECT"
+        exit 1
+    else
+        echo "✅ Production container already managed by Docker Compose."
+    fi
+fi
+
+# =============================
+# 5. Start Symfony
+# =============================
+echo "🚀 Starting Symfony..."
+compose up -d --no-deps app_prod
+
+echo "⏳ Checking Symfony startup..."
+
+APP_READY=false
+
+for i in {1..20}; do
+    if compose exec -T app_prod php bin/console --version >/dev/null 2>&1; then
+        APP_READY=true
+        break
+    fi
+
+    echo "⏳ Symfony startup ($i/20)"
+    sleep 3
+done
+
+if [ "$APP_READY" != "true" ]; then
+    echo "❌ Symfony failed to start."
+    compose logs --tail=50 app_prod
+    exit 1
+fi
+
+echo "✅ Symfony is ready."
+
+# =============================
+# 6. Database migrations
+# =============================
+echo "⚙️ Running Doctrine migrations..."
+
+compose exec -T app_prod \
+    php bin/console doctrine:migrations:migrate \
+    --env=prod \
+    --no-interaction
+
+echo "✅ Migrations completed."
+
+# =============================
+# 7. Importmap and assets
+# =============================
+echo "📦 Installing Importmap dependencies..."
+
+compose exec -T app_prod \
+    php bin/console importmap:install \
+    --env=prod \
+    --no-interaction
+
+echo "🎨 Compiling Symfony assets..."
+
+compose exec -T app_prod \
+    php bin/console asset-map:compile \
+    --env=prod
+
+# =============================
+# 8. Symfony cache
+# =============================
+echo "🧹 Clearing Symfony cache..."
+
+compose exec -T app_prod \
+    php bin/console cache:clear \
+    --env=prod \
+    --no-interaction
+
+compose exec -T app_prod \
+    php bin/console cache:warmup \
+    --env=prod \
+    --no-interaction
+
+# =============================
+# 9. Synchronize public files
+# =============================
+echo "📁 Synchronizing public files to Nginx volume..."
+
+compose exec -T -u 0 app_prod sh -ec '
+    # Verify Symfony public directory
+    test -f /app/public/index.php
+
+    # Prepare shared directory
+    mkdir -p /shared-public
+
+    # Copy public files and compiled assets
+    cp -a /app/public/. /shared-public/
+
+    # Verify synchronization
+    test -f /shared-public/index.php
+    test -d /shared-public/assets
+'
+
+echo "✅ Public files synchronized and verified."
+
+# =============================
+# 10. Start Nginx
+# =============================
+echo "🌐 Starting production Nginx..."
+
+compose up -d --no-deps web_prod
+
+# =============================
+# 11. HTTP health check
+# =============================
+echo "🔎 Testing production on localhost:9002..."
+
+HTTP_READY=false
+
+for i in {1..15}; do
+    if curl --silent --show-error --fail \
+        --max-time 5 \
+        http://127.0.0.1:9002/ \
+        >/dev/null 2>&1;
+        then
+        HTTP_READY=true
+        break
+    fi
+
+    echo "⏳ HTTP check ($i/15)"
+    sleep 3
+done
+
+if [ "$HTTP_READY" != "true" ]; then
+    echo "❌ HTTP health check failed."
+    compose logs --tail=50 web_prod app_prod
+    exit 1
+fi
+
+echo "✅ Production HTTP check passed."
+echo "🎉 Ecoride Production Docker deployment completed!"
+echo "ℹ️ Public domain remains unchanged until Nginx cutover."

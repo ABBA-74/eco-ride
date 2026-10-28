@@ -1,0 +1,69 @@
+
+name: ecoride-prod
+
+services:
+  app_prod:
+    image: ${DOCKER_IMAGE:?DOCKER_IMAGE required}:prod
+    container_name: ecoride_app_prod
+    restart: unless-stopped
+    environment:
+      APP_ENV: prod
+      APP_DEBUG: "0"
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL required}
+      MAILER_DSN: ${MAILER_DSN:?MAILER_DSN required}
+      JWT_PASSPHRASE: ${JWT_PASSPHRASE:?JWT_PASSPHRASE required}
+      CORS_ALLOW_ORIGIN: ${CORS_ALLOW_ORIGIN:?CORS_ALLOW_ORIGIN required}
+      MESSENGER_TRANSPORT_DSN: ${MESSENGER_TRANSPORT_DSN:-sync://}
+      DEFAULT_URI: ${DEFAULT_URI:?DEFAULT_URI required}
+    working_dir: /app
+    depends_on:
+      database_prod:
+        condition: service_healthy
+    networks:
+      - prod_network
+    volumes:
+      - public_prod_data:/shared-public
+
+  database_prod:
+    image: postgres:16-alpine
+    container_name: ecoride_db_prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB_PROD:?POSTGRES_DB_PROD required}
+      POSTGRES_USER: ${POSTGRES_USER_PROD:?POSTGRES_USER_PROD required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD_PROD:?POSTGRES_PASSWORD_PROD required}
+    volumes:
+      - database_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - prod_network
+
+  web_prod:
+    image: nginx:1.27-alpine
+    container_name: ecoride_web_prod
+    restart: unless-stopped
+    depends_on:
+      app_prod:
+        condition: service_started
+    ports:
+      - "127.0.0.1:9002:80"
+    volumes:
+      - public_prod_data:/app/public:ro
+      - ./docker/nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - prod_network
+
+networks:
+  prod_network:
+    driver: bridge
+
+volumes:
+  database_prod_data:
+  public_prod_data:
