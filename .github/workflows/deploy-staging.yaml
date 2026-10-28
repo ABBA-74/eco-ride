@@ -23,6 +23,7 @@ env:
     VPS_HOST: ${{ secrets.VPS_HOST }}
     VPS_USER: ${{ secrets.VPS_USER }}
     VPS_PRIVATE_KEY: ${{ secrets.VPS_PRIVATE_KEY }}
+    VPS_PORT: ${{ secrets.VPS_PORT }}
 
     # 🔔 Slack
     SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
@@ -113,7 +114,7 @@ jobs:
                   password: ${{ env.DOCKERHUB_TOKEN }}
 
             - name: 🐳 Build Docker image (staging)
-              run: docker build --no-cache --target=prod -t $DOCKER_IMAGE:latest .
+              run: docker build --pull --no-cache --target=prod -t $DOCKER_IMAGE:latest .
 
             - name: 📤 Push Docker image
               run: docker push $DOCKER_IMAGE:latest
@@ -147,6 +148,7 @@ jobs:
                 host: ${{ env.VPS_HOST }}
                 username: ${{ env.VPS_USER }}
                 key: ${{ env.VPS_PRIVATE_KEY }}
+                port: ${{ env.VPS_PORT }}
                 script: |
                   mkdir -p /var/www/ecoride/scripts
 
@@ -156,6 +158,7 @@ jobs:
                 host: ${{ env.VPS_HOST }}
                 username: ${{ env.VPS_USER }}
                 key: ${{ env.VPS_PRIVATE_KEY }}
+                port: ${{ env.VPS_PORT }}
                 source: "deploy-staging.sh"
                 target: "/var/www/ecoride/scripts/"
                 overwrite: true
@@ -166,6 +169,7 @@ jobs:
                 host: ${{ env.VPS_HOST }}
                 username: ${{ env.VPS_USER }}
                 key: ${{ env.VPS_PRIVATE_KEY }}
+                port: ${{ env.VPS_PORT }}
                 source: "compose.staging.yaml"
                 target: "/var/www/ecoride/"
                 overwrite: true
@@ -176,6 +180,7 @@ jobs:
                 host: ${{ env.VPS_HOST }}
                 username: ${{ env.VPS_USER }}
                 key: ${{ env.VPS_PRIVATE_KEY }}
+                port: ${{ env.VPS_PORT }}
                 script: |
                   mkdir -p /var/www/ecoride/docker/nginx
 
@@ -185,6 +190,7 @@ jobs:
                 host: ${{ env.VPS_HOST }}
                 username: ${{ env.VPS_USER }}
                 key: ${{ env.VPS_PRIVATE_KEY }}
+                port: ${{ env.VPS_PORT }}
                 source: "docker_nginx_staging.conf"
                 target: "/var/www/ecoride/docker/nginx/"
                 overwrite: true
@@ -195,6 +201,7 @@ jobs:
                 host: ${{ env.VPS_HOST }}
                 username: ${{ env.VPS_USER }}
                 key: ${{ env.VPS_PRIVATE_KEY }}
+                port: ${{ env.VPS_PORT }}
                 script: |
                   cat > /var/www/ecoride/.env.staging << 'EOF'
                   DOCKER_IMAGE=${{ env.DOCKER_IMAGE }}
@@ -219,6 +226,7 @@ jobs:
                 host: ${{ env.VPS_HOST }}
                 username: ${{ env.VPS_USER }}
                 key: ${{ env.VPS_PRIVATE_KEY }}
+                port: ${{ env.VPS_PORT }}
                 script: |
                   cd /var/www/ecoride/scripts/
                   chmod +x deploy-staging.sh
@@ -227,23 +235,3 @@ jobs:
                   CONTAINER_NAME="${{ env.CONTAINER_NAME }}" \
                   LOAD_FIXTURES="${{ env.LOAD_FIXTURES }}" \
                   ./deploy-staging.sh
-
-    # ---------------------------------------------
-    #  4️⃣ SLACK NOTIFICATION JOB
-    # ---------------------------------------------
-    notify:
-        runs-on: ubuntu-latest
-        needs: deploy
-
-        steps:
-            - name: 🔔 Slack notification (staging)
-              if: ${{ always() }}
-              uses: slackapi/slack-github-action@v1.24.0
-              with:
-                  payload: |
-                      {
-                        "channel": "${{ env.SLACK_CHANNEL_ID }}",
-                        "text": ":construction: *Déploiement STAGING terminé*\n\n:rocket: *Projet* : `Ecoride`\n:computer: *Environnement* : `staging`\n:technologist: *Déclenché par* : `${{ github.actor }}`\n:scroll: *Commit* : <https://github.com/${{ github.repository }}/commit/${{ github.sha }}>\n:clipboard: *Statut* : `${{ job.status }}`\n\n:white_check_mark: _Tests lancés automatiquement avant déploiement._"
-                      }
-              env:
-                  SLACK_BOT_TOKEN: ${{ env.SLACK_BOT_TOKEN }}
