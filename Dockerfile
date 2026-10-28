@@ -52,7 +52,9 @@ FROM base AS prod
 
 # Set environment variables for production
 ENV APP_ENV=prod
-ENV DEBUG=0
+ENV APP_DEBUG=0
+
+RUN printf 'APP_ENV=prod\nAPP_DEBUG=0\n' > /app/.env
 
 ENV COMPOSER_ALLOW_SUPERUSER=1
 
