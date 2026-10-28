@@ -235,23 +235,3 @@ jobs:
                   CONTAINER_NAME="${{ env.CONTAINER_NAME }}" \
                   LOAD_FIXTURES="${{ env.LOAD_FIXTURES }}" \
                   ./deploy-staging.sh
-
-    # ---------------------------------------------
-    #  4️⃣ SLACK NOTIFICATION JOB
-    # ---------------------------------------------
-    notify:
-        runs-on: ubuntu-latest
-        needs: deploy
-
-        steps:
-            - name: 🔔 Slack notification (staging)
-              if: ${{ always() }}
-              uses: slackapi/slack-github-action@v1.24.0
-              with:
-                  payload: |
-                      {
-                        "channel": "${{ env.SLACK_CHANNEL_ID }}",
-                        "text": ":construction: *Déploiement STAGING terminé*\n\n:rocket: *Projet* : `Ecoride`\n:computer: *Environnement* : `staging`\n:technologist: *Déclenché par* : `${{ github.actor }}`\n:scroll: *Commit* : <https://github.com/${{ github.repository }}/commit/${{ github.sha }}>\n:clipboard: *Statut* : `${{ job.status }}`\n\n:white_check_mark: _Tests lancés automatiquement avant déploiement._"
-                      }
-              env:
-                  SLACK_BOT_TOKEN: ${{ env.SLACK_BOT_TOKEN }}
