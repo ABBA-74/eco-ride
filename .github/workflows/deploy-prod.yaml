@@ -24,6 +24,7 @@ env:
     VPS_HOST: ${{ secrets.VPS_HOST }}
     VPS_USER: ${{ secrets.VPS_USER }}
     VPS_PRIVATE_KEY: ${{ secrets.VPS_PRIVATE_KEY }}
+    VPS_PORT: ${{ secrets.VPS_PORT }}
 
     # 🔔 Slack
     SLACK_CHANNEL_ID: ${{ secrets.SLACK_CHANNEL_ID }}
@@ -63,7 +64,7 @@ jobs:
                   password: ${{ env.DOCKERHUB_TOKEN }}
 
             - name: 🐳 Build Docker image (prod)
-              run: docker build --target=prod -t $DOCKER_IMAGE:latest .
+              run: docker build --pull --target=prod -t $DOCKER_IMAGE:latest .
 
             - name: 📤 Push Docker image
               run: docker push $DOCKER_IMAGE:latest
@@ -89,6 +90,7 @@ jobs:
                 host: ${{ env.VPS_HOST }}
                 username: ${{ env.VPS_USER }}
                 key: ${{ env.VPS_PRIVATE_KEY }}
+                port: ${{ env.VPS_PORT }}
                 script: |
                   mkdir -p /var/www/ecoride/scripts
 
@@ -98,6 +100,7 @@ jobs:
                 host: ${{ env.VPS_HOST }}
                 username: ${{ env.VPS_USER }}
                 key: ${{ env.VPS_PRIVATE_KEY }}
+                port: ${{ env.VPS_PORT }}
                 source: "deploy-prod.sh"
                 target: "/var/www/ecoride/scripts/"
                 overwrite: true
@@ -108,6 +111,7 @@ jobs:
                 host: ${{ env.VPS_HOST }}
                 username: ${{ env.VPS_USER }}
                 key: ${{ env.VPS_PRIVATE_KEY }}
+                port: ${{ env.VPS_PORT }}
                 script: |
                   cd /var/www/ecoride/scripts/
                   chmod +x deploy-prod.sh
