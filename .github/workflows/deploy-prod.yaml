@@ -228,7 +228,7 @@ jobs:
                   -t ed25519 "$SSH_HOST" > "$SSH_DIR/known_hosts" 2>/dev/null
 
                 # Validate against the fingerprint verified directly on the VPS.
-                EXPECTED="SHA256:3YB6iew9eD04oNBb68DP3/00HGiDtzE1HUu+IgkpTw8"
+                EXPECTED="SHA256:3YB6iew9eD04oNBb68DP3/7pHGiDtzE1HUu+IgkpTw8"
 
                 ssh-keygen -lf "$SSH_DIR/known_hosts" -E sha256 \
                   | grep -Fq "$EXPECTED" || {
@@ -255,7 +255,6 @@ jobs:
                   < .env.prod
 
                 echo "Secure production environment transfer completed."
-
 
             - name: 🚀 Run deploy script on VPS
               uses: appleboy/ssh-action@v1.2.2
