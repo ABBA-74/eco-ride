@@ -119,23 +119,3 @@ jobs:
                   CONTAINER_NAME="${{ env.CONTAINER_NAME }}" \
                   DATABASE_URL="${{ env.DATABASE_URL }}" \
                   ./deploy-prod.sh
-
-    # ---------------------------------------------
-    # 3️⃣ SLACK NOTIFICATION JOB
-    # ---------------------------------------------
-    notify:
-        runs-on: ubuntu-latest
-        needs: deploy
-
-        steps:
-            - name: 🔔 Slack notification (production)
-              if: ${{ always() }}
-              uses: slackapi/slack-github-action@v1.24.0
-              with:
-                  payload: |
-                      {
-                        "channel": "${{ env.SLACK_CHANNEL_ID }}",
-                        "text": ":red_circle: *🚨 Déploiement PRODUCTION terminé !*\n\n:rocket: *Projet* : `Ecoride`\n:factory: *Environnement* : `production`\n:bust_in_silhouette: *Déclenché par* : `${{ github.actor }}`\n:link: *Voir le run* : <https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}>\n:page_with_curl: *Commit* : <https://github.com/${{ github.repository }}/commit/${{ github.sha }}>\n\n*Statut* : `${{ job.status }}`\n\n:warning: _Merci de vérifier que tout fonctionne comme prévu._"
-                      }
-              env:
-                  SLACK_BOT_TOKEN: ${{ env.SLACK_BOT_TOKEN }}
