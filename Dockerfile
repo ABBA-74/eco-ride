@@ -61,10 +61,10 @@ ENV COMPOSER_ALLOW_SUPERUSER=1
 # Copy the entire Symfony project into the container
 COPY . $APP_HOME
 
-# Ensure necessary directories exist and have correct permissions
-RUN mkdir -p var/cache var/log \
-    && chown -R $APP_USER:$APP_USER var \
-    && chmod -R 775 var
+# Prepare writable Symfony directories
+RUN mkdir -p var/cache var/log assets/vendor public/assets \
+    && chown -R $APP_USER:$APP_USER var assets public \
+    && chmod -R u+rwX var assets public
 
 # Install PHP dependencies (without dev packages)
 # --no-dev: excludes dev dependencies

@@ -1,5 +1,7 @@
 
 ###> symfony/framework-bundle ###
+# Production secrets - never commit
+.env.prod
 /.env.local
 /.env.local.php
 /.env.*.local
