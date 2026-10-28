@@ -160,9 +160,11 @@ jobs:
 
                 lines.append("MESSENGER_TRANSPORT_DSN='sync://'")
 
+                os.umask(0o077)
+
                 path = Path(".env.prod")
                 path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-                path.chmod(0o644)
+                path.chmod(0o600)
 
                 print("Production environment file generated.")
                 PY
@@ -205,16 +207,55 @@ jobs:
                 target: "/var/www/ecoride/"
                 overwrite: true
 
-            - name: 🔐 Copy production environment to VPS
-              uses: appleboy/scp-action@v0.1.7
-              with:
-                host: ${{ env.VPS_HOST }}
-                username: ${{ env.VPS_USER }}
-                key: ${{ env.VPS_PRIVATE_KEY }}
-                port: ${{ env.VPS_PORT }}
-                source: ".env.prod"
-                target: "/var/www/ecoride/"
-                overwrite: true
+            - name: 🔐 Securely transfer production environment to VPS
+              env:
+                SSH_HOST: ${{ secrets.VPS_HOST }}
+                SSH_USER: ${{ secrets.VPS_USER }}
+                SSH_PORT: ${{ secrets.VPS_PORT }}
+                SSH_PRIVATE_KEY: ${{ secrets.VPS_PRIVATE_KEY }}
+              run: |
+                set -euo pipefail
+                umask 077
+
+                SSH_DIR="$(mktemp -d)"
+                trap 'rm -rf "$SSH_DIR"' EXIT
+
+                printf '%s\n' "$SSH_PRIVATE_KEY" > "$SSH_DIR/id_ed25519"
+                chmod 600 "$SSH_DIR/id_ed25519"
+
+                # Retrieve only the public host key.
+                ssh-keyscan -T 10 -p "${SSH_PORT:-22}" \
+                  -t ed25519 "$SSH_HOST" > "$SSH_DIR/known_hosts" 2>/dev/null
+
+                # Validate against the fingerprint verified directly on the VPS.
+                EXPECTED="SHA256:3YB6iew9eD04oNBb68DP3/00HGiDtzE1HUu+IgkpTw8"
+
+                ssh-keygen -lf "$SSH_DIR/known_hosts" -E sha256 \
+                  | grep -Fq "$EXPECTED" || {
+                    echo "SSH host fingerprint mismatch. Transfer aborted."
+                    exit 1
+                  }
+
+                # Stream the secret over authenticated SSH.
+                # The destination is created with mode 600 and atomically replaced.
+                ssh \
+                  -i "$SSH_DIR/id_ed25519" \
+                  -p "${SSH_PORT:-22}" \
+                  -o IdentitiesOnly=yes \
+                  -o StrictHostKeyChecking=yes \
+                  -o UserKnownHostsFile="$SSH_DIR/known_hosts" \
+                  "$SSH_USER@$SSH_HOST" \
+                  'set -eu
+                  umask 077
+                  tmp="$(mktemp /var/www/ecoride/.env.prod.XXXXXX)"
+                  trap "rm -f $tmp" EXIT
+                  cat > "$tmp"
+                  chmod 600 "$tmp"
+                  mv -f "$tmp" /var/www/ecoride/.env.prod' \
+                  < .env.prod
+
+                echo "Secure production environment transfer completed."
+
 
             - name: 🚀 Run deploy script on VPS
               uses: appleboy/ssh-action@v1.2.2
