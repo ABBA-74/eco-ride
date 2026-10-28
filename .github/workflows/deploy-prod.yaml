@@ -162,7 +162,7 @@ jobs:
 
                 path = Path(".env.prod")
                 path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-                path.chmod(0o600)
+                path.chmod(0o644)
 
                 print("Production environment file generated.")
                 PY
