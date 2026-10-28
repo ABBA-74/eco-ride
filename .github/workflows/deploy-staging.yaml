@@ -113,7 +113,7 @@ jobs:
                   password: ${{ env.DOCKERHUB_TOKEN }}
 
             - name: 🐳 Build Docker image (staging)
-              run: docker build --no-cache --target=prod -t $DOCKER_IMAGE:latest .
+              run: docker build --pull --no-cache --target=prod -t $DOCKER_IMAGE:latest .
 
             - name: 📤 Push Docker image
               run: docker push $DOCKER_IMAGE:latest
